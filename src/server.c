@@ -28,12 +28,13 @@ void chat_server(int port)
         perror(" Falied setsocketopt ");
         exit(EXIT_FAILURE);
     }
-
-    // bind socket to port 
+    
     memset (&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = INADDR_ANY;
-    server_addr.sin_port = htons(port);
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = INADDR_ANY;
+        server_addr.sin_port = htons(port);
+    // bind socket to port 
+   
     if(bind(server_fd,SSA&server_addr,sizeof(server_addr))<0){
         perror(" Falied bind ");
         exit(EXIT_FAILURE);
