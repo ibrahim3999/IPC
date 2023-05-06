@@ -14,16 +14,16 @@ void chat_client(char *ip_addr, int port){
     struct sockaddr_in server_addr;
     char msg[MAX_MESSAGE_LENGTH];
 
-    int client_fd = socket(AF_INET,SOCK_STREAM,0);
+    client_fd = socket(AF_INET,SOCK_STREAM,0);
     // create sokcet file descriptor
     if(client_fd == -1){
-        perror("socket failed");
+        perror("Client -> socket failed");
         exit(EXIT_FAILURE);
     }
 
     // convert IP address to network order
     if(inet_pton(AF_INET,ip_addr,&server_addr.sin_addr)<=0){
-       perror("inet_pton failed");
+       perror("Client -> inet_pton failed");
         exit(EXIT_FAILURE);
     }
 
@@ -34,8 +34,8 @@ void chat_client(char *ip_addr, int port){
     server_addr.sin_addr.s_addr = INADDR_ANY;
     server_addr.sin_port = htons(port);
 
-    if(connect(client_fd,SSA&server_addr,sizeof(server_addr))<0){
-        perror("connect failed");
+    if(connect(client_fd,SSA&server_addr,sizeof(server_addr))==-1){
+        perror("Client ->connect failed");
         exit(EXIT_FAILURE);
     }
 
@@ -45,17 +45,21 @@ void chat_client(char *ip_addr, int port){
         printf("Clinet: ");
         fgets(msg,MAX_MESSAGE_LENGTH,stdin);
         if(send(client_fd,msg,strlen(msg),0)<0){
-            perror("send falied");
+            perror("Client ->send falied");
             exit(EXIT_FAILURE);
         }
 
         //receive msg from server
 
         if(recv(client_fd,msg,MAX_MESSAGE_LENGTH,0) < 0 ){
-            perror("recv falied");
+            perror("Client ->recv falied");
             exit(EXIT_FAILURE);
         }
         printf("Server: %s",msg);
     }
 
+}
+void main(){
+   //chat_server(1235); 
+    chat_client("127.0.0.1",1235);
 }
