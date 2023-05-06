@@ -59,7 +59,7 @@ void chat_server(int port)
             perror("Server ->  recv Falied ");
             exit(EXIT_FAILURE);
         }
-        printf("Clinet: %s\n",msg);
+        printf("Clinet: %s",msg);
 
         //send msg to client 
         printf("Server: ");
@@ -70,8 +70,4 @@ void chat_server(int port)
         }
     }
 
-}
-void main(){
-   chat_server(1235); 
-   // chat_client("127.0.0.1",1235);
 }

@@ -27,7 +27,7 @@ void chat_client(char *ip_addr, int port){
         exit(EXIT_FAILURE);
     }
 
-    //set server addres andport
+    //set server addres and port
      
     memset (&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
@@ -58,8 +58,4 @@ void chat_client(char *ip_addr, int port){
         printf("Server: %s",msg);
     }
 
-}
-void main(){
-   //chat_server(1235); 
-    chat_client("127.0.0.1",1235);
 }
