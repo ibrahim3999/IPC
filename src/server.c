@@ -7,10 +7,13 @@
 #include <arpa/inet.h>
 #include <sys/poll.h>
 
-#define MAX_MESSAGE_LENGTH 1024
 #define SSA  (struct sockaddr *)
+#define PORT 5777
+#define BUFFER_SIZE 1024
+#define LARGE_BUFFER_SIZE  104857600
+#define MAX_MESSAGE_LENGTH 1024
 
-void chat_server(int port)
+void chat_server_TCP_IPV4(int port)
 {
     int server_fd , client_fd;
     struct sockaddr_in server_addr , client_addr;
@@ -89,5 +92,123 @@ void chat_server(int port)
             }
         }
     }
+   
+}
+//part B
+void start_server_TCP_IPv4() {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    socklen_t addrlen = sizeof(address);
+    char *hello = "Hello from server";
 
+    // Create socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Set socket options
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Bind socket to port
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(PORT);
+
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for connections
+    if (listen(server_fd, 3) < 0) {
+        perror("listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Accept incoming connection
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen)) < 0) {
+        perror("accept failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send 100MB (104857600 bytes) of data to client
+    int total_sent = 0;
+    while (total_sent < LARGE_BUFFER_SIZE) {
+        int bytes_sent = send(new_socket, hello, strlen(hello), 0);
+        if (bytes_sent < 0) {
+            perror("send failed");
+            exit(EXIT_FAILURE);
+        }
+        total_sent += bytes_sent;
+    }
+
+    printf("Sent %d bytes to client\n", total_sent);
+    close(new_socket);
+    close(server_fd);
+}
+void start_server_TCP_IPv6() {
+    int server_fd, new_socket, valread;
+    struct sockaddr_in6 address;
+    int opt = 1;
+    socklen_t addrlen = sizeof(address);
+    char *hello = "Hello from server";
+
+    // Create socket file descriptor
+    if ((server_fd = socket(AF_INET6, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Set socket options
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Bind socket to port
+    address.sin6_family = AF_INET6;
+    address.sin6_addr = in6addr_any;
+    address.sin6_port = htons(PORT);
+
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listen for connections
+    if (listen(server_fd, 3) < 0) {
+        perror("listen failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Accept incoming connection
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen)) < 0) {
+        perror("accept failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send 100MB (104857600 bytes) of data to client
+    int total_sent = 0;
+    while (total_sent < LARGE_BUFFER_SIZE) {
+        int bytes_sent = send(new_socket, hello, strlen(hello), 0);
+        if (bytes_sent < 0) {
+            perror("send failed");
+            exit(EXIT_FAILURE);
+        }
+        total_sent += bytes_sent;
+    }
+
+    printf("Sent %d bytes to client\n", total_sent);
+    close(new_socket);
+    close(server_fd);
+}
+int main(){
+    //start_server_TCP_IPv4();
+    start_server_TCP_IPv6();
+    return 0;
 }
