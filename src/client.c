@@ -15,15 +15,15 @@
 #include <sys/stat.h>
 
 
-
-
-#define PORT 5777
+#define PORT 9998
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 104857600//100MB
 #define MAX_MESSAGE_LENGTH 1024
 #define SSA  (struct sockaddr *)
 #define UDS_PATH "/tmp/mysocket" //change it
 #define FILENAME "100MB.bin" // put 100 mb file.
+
+
 
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
     int client_fd;
@@ -87,6 +87,136 @@ void chat_client_TCP_IPV4(char *ip_addr, int port) {
         }
     }
 }
+unsigned int checksum(const char *buf, size_t len) {
+    unsigned int sum = 0;
+    for (size_t i = 0; i < len; i++) {
+        sum += buf[i];
+    }
+    return sum;
+}
+//PARTB 
+void client_TCP_IPv4() {
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    char *hello = "Hello from client";
+    char buffer[BUFFER_SIZE] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+    
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send message to server
+    send(sock, hello, strlen(hello), 0);
+    printf("Hello message sent\n");
+
+    // Read response from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+        valread = read(sock, buffer, BUFFER_SIZE);
+        if (valread == 0) {
+            // server disconnected
+            break;
+        }
+        if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+            // limit valread to prevent buffer overflow
+            valread = LARGE_BUFFER_SIZE - total_bytes_read;
+        }
+        memcpy(large_buffer + total_bytes_read, buffer, valread);
+        total_bytes_read += valread;
+    }
+    printf("%d",total_bytes_read);
+    // Calculate checksum of received data
+    /**
+    unsigned int expected_checksum = checksum(large_buffer, LARGE_BUFFER_SIZE);
+    send(sock, &expected_checksum, sizeof(unsigned int), 0);
+    unsigned int actual_checksum;
+    if (recv(sock, &actual_checksum, sizeof(unsigned int), 0) < 0) {
+        printf("\nError receiving checksum from server\n");
+        exit(EXIT_FAILURE);
+    }
+    printf("Expected checksum: %u\n", expected_checksum);
+    printf("Actual checksum: %u\n", actual_checksum);
+    if (expected_checksum == actual_checksum) {
+        printf("Checksum is correct. %ld bytes received from server\n", total_bytes_read - sizeof(unsigned int));
+    } else {
+        printf("Checksum is incorrect. %ld bytes received from server\n", total_bytes_read - sizeof(unsigned int));
+    }*/
+ 
+close(sock);
+
+}
+
+void client_TCP_IPv6() {
+    int sock = 0, valread;
+    struct sockaddr_in6 serv_addr;
+    char *hello = "Hello from client";
+    char buffer[MAX_MESSAGE_LENGTH] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin6_family = AF_INET6;
+    serv_addr.sin6_port = htons(PORT);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET6, "::1", &serv_addr.sin6_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send message to server
+    send(sock, hello, strlen(hello), 0);
+    printf("Hello message sent\n");
+
+    // Read response from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+        valread = read(sock, buffer, BUFFER_SIZE);
+        if (valread == 0) {
+            // server disconnected
+            break;
+        }
+        if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+            // limit valread to prevent buffer overflow
+            valread = LARGE_BUFFER_SIZE - total_bytes_read;
+        }
+        memcpy(large_buffer + total_bytes_read, buffer, valread);
+        total_bytes_read += valread;
+    }
+    printf("%d bytes received from server\n", total_bytes_read);
+
+    close(sock);
+}
 void client_UDP_IPv4(char *ip, int port) {
     struct sockaddr_in server_addr;
     int sockfd, i, total_sent = 0;
@@ -114,34 +244,46 @@ void client_UDP_IPv4(char *ip, int port) {
 
     close(sockfd);
 }
-
-
-void client_UDP_IPv6(char *ip, int port) {
-    struct sockaddr_in6 server_addr;
-    int sockfd, i, total_sent = 0;
+void client_UDP_IPv6(int port) {
+    struct sockaddr_in6 server_addr, client_addr;
+    int sockfd, recv_len, total_recv = 0;
+    socklen_t client_len;
     char buf[BUFFER_SIZE];
 
     if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        perror("Error creating socket");
+        error("Error creating socket");
     }
 
     memset((char *)&server_addr, 0, sizeof(server_addr));
     server_addr.sin6_family = AF_INET6;
-    inet_pton(AF_INET6, ip, &(server_addr.sin6_addr));
+    server_addr.sin6_addr = in6addr_any;
     server_addr.sin6_port = htons(port);
 
-    printf("Sending 100MB data to server %s:%d...\n", ip, port);
-
-    while (total_sent < LARGE_BUFFER_SIZE) { // send 100MB of data
-        if (sendto(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-            perror("Error sending data");
-        }
-
-        total_sent += BUFFER_SIZE;
-        printf("Bytes Sent : %d\n" ,total_sent);
-
+    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        error("Error binding socket");
     }
 
+    printf("Server started on port %d...\n", port);
+
+    while (total_recv < LARGE_BUFFER_SIZE) { // receive 100MB of data
+        memset(buf, 0, BUFFER_SIZE);
+        client_len = sizeof(client_addr);
+
+        if ((recv_len = recvfrom(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_len)) == -1) {
+            error("Error receiving data");
+        }
+
+        char client_addr_str[INET6_ADDRSTRLEN];
+        inet_ntop(AF_INET6, &(client_addr.sin6_addr), client_addr_str, INET6_ADDRSTRLEN);
+
+        if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr *)&client_addr, client_len) == -1) {
+            error("Error sending data");
+        }
+
+        total_recv += recv_len;
+        printf("Received %d bytes of data\n", total_recv);
+
+    }
 
     close(sockfd);
 }
@@ -228,52 +370,6 @@ void start_client_UDS_stream() {
     close(client_fd);
 }
 
-void start_client_UDS_stream() {
-    int client_fd, valread;
-    struct sockaddr_un address;
-    char buffer[BUFFER_SIZE] = {0};
-    char *hello = "Hello from client";
-
-    // Create socket file descriptor
-    if ((client_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == 0) {
-        perror("socket failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Connect to UDS path
-    memset(&address, 0, sizeof(address));
-    address.sun_family = AF_UNIX;
-    strncpy(address.sun_path, UDS_PATH, sizeof(address.sun_path) - 1);
-
-    if (connect(client_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("connect failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Send message to server
-    int total_sent = 0;
-    while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = send(client_fd, hello, strlen(hello), 0);
-        if (bytes_sent < 0) {
-            perror("send failed");
-            exit(EXIT_FAILURE);
-        }
-        total_sent += bytes_sent;
-    }
-
-    printf("Sent %d bytes to server\n", total_sent);
-
-    // Receive response from server
-    int bytes_received = recv(client_fd, buffer, BUFFER_SIZE, 0);
-    if (bytes_received < 0) {
-        perror("recv failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Received message from server: %s\n", buffer);
-
-    close(client_fd);
-}
 
 void start_client_pipe() {
     int fd;
@@ -311,7 +407,7 @@ void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
     //client_TCP_IPv6();
-    //client_TCP_IPv4();
+    client_TCP_IPv4();
     //client_UDP_IPv4("127.0.0.1",7777);
     //client_UDP_IPv6("127.0.0.1",6666);
 
