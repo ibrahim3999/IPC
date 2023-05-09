@@ -87,6 +87,112 @@ void chat_client_TCP_IPV4(char *ip_addr, int port) {
         }
     }
 }
+//PART B
+void client_TCP_IPv4() {
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    char *hello = "Hello from client";
+    char buffer[MAX_MESSAGE_LENGTH] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(PORT);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send message to server
+    send(sock, hello, strlen(hello), 0);
+    printf("Hello message sent\n");
+
+   // Read response from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+    valread = read(sock, buffer, BUFFER_SIZE);
+    if (valread == 0) {
+        // server disconnected
+        break;
+    }
+    if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+        // limit valread to prevent buffer overflow
+        valread = LARGE_BUFFER_SIZE - total_bytes_read;
+    }
+    memcpy(large_buffer + total_bytes_read, buffer, valread);
+    total_bytes_read += valread;
+}
+    printf("%d bytes received from server\n", total_bytes_read);
+
+    close(sock);
+}
+void client_TCP_IPv6() {
+    int sock = 0, valread;
+    struct sockaddr_in6 serv_addr;
+    char *hello = "Hello from client";
+    char buffer[MAX_MESSAGE_LENGTH] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin6_family = AF_INET6;
+    serv_addr.sin6_port = htons(PORT);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET6, "::1", &serv_addr.sin6_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+
+    if (connect(sock, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0) {
+        printf("\nConnection Failed \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Send message to server
+    send(sock, hello, strlen(hello), 0);
+    printf("Hello message sent\n");
+
+    // Read response from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+        valread = read(sock, buffer, BUFFER_SIZE);
+        if (valread == 0) {
+            // server disconnected
+            break;
+        }
+        if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+            // limit valread to prevent buffer overflow
+            valread = LARGE_BUFFER_SIZE - total_bytes_read;
+        }
+        memcpy(large_buffer + total_bytes_read, buffer, valread);
+        total_bytes_read += valread;
+    }
+    printf("%d bytes received from server\n", total_bytes_read);
+
+    close(sock);
+}
+
 void client_UDP_IPv4(char *ip, int port) {
     struct sockaddr_in server_addr;
     int sockfd, i, total_sent = 0;
