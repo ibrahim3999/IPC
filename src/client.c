@@ -87,6 +87,7 @@ void chat_client_TCP_IPV4(char *ip_addr, int port) {
         }
     }
 }
+<<<<<<< HEAD
 unsigned int checksum(const char *buf, size_t len) {
     unsigned int sum = 0;
     for (size_t i = 0; i < len; i++) {
@@ -95,13 +96,22 @@ unsigned int checksum(const char *buf, size_t len) {
     return sum;
 }
 //PARTB 
+=======
+//PART B
+>>>>>>> origin/main
 void client_TCP_IPv4() {
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char *hello = "Hello from client";
+<<<<<<< HEAD
     char buffer[BUFFER_SIZE] = {0};
     char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
     
+=======
+    char buffer[MAX_MESSAGE_LENGTH] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+
+>>>>>>> origin/main
     // Create socket file descriptor
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
@@ -128,6 +138,7 @@ void client_TCP_IPv4() {
     send(sock, hello, strlen(hello), 0);
     printf("Hello message sent\n");
 
+<<<<<<< HEAD
     // Read response from server
     int total_bytes_read = 0;
     while (total_bytes_read < LARGE_BUFFER_SIZE) {
@@ -165,6 +176,27 @@ close(sock);
 
 }
 
+=======
+   // Read response from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+    valread = read(sock, buffer, BUFFER_SIZE);
+    if (valread == 0) {
+        // server disconnected
+        break;
+    }
+    if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+        // limit valread to prevent buffer overflow
+        valread = LARGE_BUFFER_SIZE - total_bytes_read;
+    }
+    memcpy(large_buffer + total_bytes_read, buffer, valread);
+    total_bytes_read += valread;
+}
+    printf("%d bytes received from server\n", total_bytes_read);
+
+    close(sock);
+}
+>>>>>>> origin/main
 void client_TCP_IPv6() {
     int sock = 0, valread;
     struct sockaddr_in6 serv_addr;
@@ -217,6 +249,10 @@ void client_TCP_IPv6() {
 
     close(sock);
 }
+<<<<<<< HEAD
+=======
+
+>>>>>>> origin/main
 void client_UDP_IPv4(char *ip, int port) {
     struct sockaddr_in server_addr;
     int sockfd, i, total_sent = 0;
