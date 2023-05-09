@@ -23,7 +23,7 @@
 #define MAX_MESSAGE_LENGTH 1024
 #define SSA  (struct sockaddr *)
 #define UDS_PATH "/tmp/mysocket" //change it
-#define FILENAME "example.txt" // put 100 mb file.
+#define FILENAME "100MB.bin" // put 100 mb file.
 
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
     int client_fd;
