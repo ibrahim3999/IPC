@@ -377,7 +377,7 @@ void start_server_UDP_IPv6(char *ip, int port) {
     close(sockfd);
 }
 
-/*
+
 //must check the function..
 void start_server_UDS_dgram() {
     int server_fd, valread;
@@ -385,6 +385,7 @@ void start_server_UDS_dgram() {
     int opt = 1;
     socklen_t addrlen = sizeof(address);
     char *hello = "Hello from server";
+    char* data =generate_data(LARGE_BUFFER_SIZE);
 
     // Create socket file descriptor
     if ((server_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == 0) {
@@ -401,7 +402,7 @@ void start_server_UDS_dgram() {
     // Bind socket to UDS path
     memset(&address, 0, sizeof(address));
     address.sun_family = AF_UNIX;
-    #define UDS_PATH "/tmp/my_unix_socket" //must define the relevant path
+//    #define UDS_PATH "/tmp/my_unix_socket" //must define the relevant path
     strncpy(address.sun_path, UDS_PATH, sizeof(address.sun_path) - 1);
 
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
@@ -434,7 +435,7 @@ void start_server_UDS_dgram() {
     close(server_fd);
     unlink(UDS_PATH);
 }
-
+/*
 void start_server_UDS_stream() {
     int server_fd, new_socket, valread;
     struct sockaddr_un address;
@@ -595,7 +596,7 @@ int main(){
     //start_server_TCP_IPv4();
     //start_server_TCP_IPv6();
    // start_server_UDP_IPv4(2222);
-    start_server_UDP_IPv6("::1",10101);
+    //start_server_UDP_IPv6("::1",10101);
 
     return 0;
 }

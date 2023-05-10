@@ -327,7 +327,7 @@ void client_UDP_IPv6(int port) {
     printf("Received %d bytes of data\n", total_bytes_read);
     close(sock);
 }
-/*
+
 //must check the function.
 void start_client_UDS_dgram() {
     int sockfd, n;
@@ -367,7 +367,7 @@ void start_client_UDS_dgram() {
     close(sockfd);
 }
 
-
+/*
 
 void start_client_UDS_stream() {
     int client_fd, bytes_sent, bytes_received;
