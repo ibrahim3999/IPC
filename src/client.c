@@ -275,41 +275,58 @@ void client_UDP_IPv4(int port) {
 
     // Receive connection message from server
     int addr_len = sizeof(serv_addr);
-    valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
-    printf("%s\n", buffer);
+    struct pollfd fdset[1];
+    fdset[0].fd = sock;
+    fdset[0].events = POLLIN;
+    int ret = poll(fdset, 1, 3000);
+    if (ret == -1) {
+        perror("Error polling socket");
+        exit(EXIT_FAILURE);
+    } else if (ret == 0) {
+        printf("Timeout waiting for connection message\n");
+        exit(EXIT_FAILURE);
+    } else {
+        valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+        printf("%s\n", buffer);
+    }
 
     // Receive data from server
     int total_bytes_read = 0;
     while (total_bytes_read < LARGE_BUFFER_SIZE) {
-        valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
-        if (valread == 0 ) {
-            // server disconnected
-            break;
-        }
-        if (valread == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
-            // No data available to read, continue loop
-           // printf("dont RecvFrom:%d\n",total_bytes_read);
-            total_bytes_read++;
-            continue;
-        }
-        if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
-            // limit valread to prevent buffer overflow
-            valread = LARGE_BUFFER_SIZE - total_bytes_read;
-        }
-        memcpy(large_buffer + total_bytes_read, buffer, valread);
-        total_bytes_read += valread;
-        printf("Received %d\n",total_bytes_read);
+        struct pollfd fdset[1];
+        fdset[0].fd = sock;
+        fdset[0].events = POLLIN;
+        int ret = poll(fdset, 1, 3000);
+        if (ret == -1) {
+            perror("Error polling socket");
+            exit(EXIT_FAILURE);
+        } else if (ret == 0) {
+            printf("total read :%d\n",total_bytes_read);
+            printf("Timeout waiting for data\n");
+            exit(EXIT_FAILURE);
+        } else {
+            valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+            if (valread == 0 ) {
+                // server disconnected
+                break;
+            }
+            if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+                // limit valread to prevent buffer overflow
+                valread = LARGE_BUFFER_SIZE - total_bytes_read;
+            }
+            memcpy(large_buffer + total_bytes_read, buffer, valread);
+            total_bytes_read += valread;
+            printf("Received %d\n",total_bytes_read);
 
-        if (total_bytes_read == LARGE_BUFFER_SIZE) {
-            // stop the loop if all data has been received
-            break;
+            if (total_bytes_read == LARGE_BUFFER_SIZE) {
+                // stop the loop if all data has been received
+                break;
+            }
         }
     }
-
     printf("Received %d bytes of data\n", total_bytes_read);
     close(sock);
 }
-
 
 
 /*
@@ -477,7 +494,7 @@ void main() {
     setrlimit(RLIMIT_STACK, &limit);
     //client_TCP_IPv6();
     //client_TCP_IPv4();
-    client_UDP_IPv4(2545);
+    client_UDP_IPv4(2222);
     //client_UDP_IPv6("127.0.0.1",6666);
 
 }

@@ -331,7 +331,7 @@ void start_server_UDP_IPv4(int port) {
 }
 
 
-/*
+
 void start_server_UDP_IPv6(char *ip, int port) {
     struct sockaddr_in6 server_addr;
     int sockfd, i, total_sent = 0;
@@ -579,7 +579,7 @@ void start_server_pipe() {
 int main(){
     //start_server_TCP_IPv4();
     //start_server_TCP_IPv6();
-    start_server_UDP_IPv4(2545);
+    start_server_UDP_IPv4(2222);
     //start_server_UDP_IPv6(6666);
 
     return 0;
