@@ -333,32 +333,47 @@ void start_server_UDP_IPv4(int port) {
 
 
 void start_server_UDP_IPv6(char *ip, int port) {
-    struct sockaddr_in6 server_addr;
-    int sockfd, i, total_sent = 0;
-    char buf[BUFFER_SIZE];
+    struct sockaddr_in6 server_addr, client_addr;
+    int sockfd, total_sent = 0;
+    socklen_t client_len = sizeof(client_addr);
+    char* data = generate_data(LARGE_BUFFER_SIZE);
+    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int received_checksum = 0;
 
     if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
         perror("Error creating socket");
+        exit(EXIT_FAILURE);
     }
 
     memset((char *)&server_addr, 0, sizeof(server_addr));
+
     server_addr.sin6_family = AF_INET6;
-    inet_pton(AF_INET6, ip, &(server_addr.sin6_addr));
+    server_addr.sin6_addr = in6addr_any;
     server_addr.sin6_port = htons(port);
 
-    printf("Sending 100MB data to server %s:%d...\n", ip, port);
-
-    while (total_sent < LARGE_BUFFER_SIZE) { // send 100MB of data
-        if (sendto(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-            perror("Error sending data");
-        }
-
-        total_sent += BUFFER_SIZE;
-        printf("Bytes Sent : %d\n" ,total_sent);
-
+    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
+        perror("Error binding socket");
+        exit(EXIT_FAILURE);
     }
-
-
+    // Receive data from client to retrieve client's address and port information
+    char buffer[BUFFER_SIZE];
+    if (recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_len) == -1) {
+        perror("Error receiving data");
+        exit(EXIT_FAILURE);
+    }
+    while (total_sent < LARGE_BUFFER_SIZE) { // send 100MB of data
+        int send_len = BUFFER_SIZE;
+        if (total_sent + BUFFER_SIZE > LARGE_BUFFER_SIZE) {
+            send_len = LARGE_BUFFER_SIZE - total_sent;
+        }
+        if (sendto(sockfd, data + total_sent, send_len, 0, (struct sockaddr *)&client_addr, client_len) == -1) {
+            perror("Error sending data");
+            exit(EXIT_FAILURE);
+        }
+        total_sent += send_len;
+       
+    }
+    printf("Sent %d bytes of data\n", total_sent);
     close(sockfd);
 }
 
@@ -579,8 +594,8 @@ void start_server_pipe() {
 int main(){
     //start_server_TCP_IPv4();
     //start_server_TCP_IPv6();
-    start_server_UDP_IPv4(2222);
-    //start_server_UDP_IPv6(6666);
+   // start_server_UDP_IPv4(2222);
+    start_server_UDP_IPv6("::1",10101);
 
     return 0;
 }
