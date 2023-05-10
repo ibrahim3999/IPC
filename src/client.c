@@ -249,6 +249,96 @@ void client_UDP_IPv4(int port) {
     char * conn = "connection...";
 
     // Create socket file descriptor
+    if ((sock = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Make the socket non-blocking
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET6, "::1", &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+    if (sendto(sock, conn, strlen(conn), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
+        perror("Error sending data");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive connection message from server
+    int addr_len = sizeof(serv_addr);
+    struct pollfd fdset[1];
+    fdset[0].fd = sock;
+    fdset[0].events = POLLIN;
+    int ret = poll(fdset, 1, 3000);
+    if (ret == -1) {
+        perror("Error polling socket");
+        exit(EXIT_FAILURE);
+    } else if (ret == 0) {
+        printf("Timeout waiting for connection message\n");
+        exit(EXIT_FAILURE);
+    } else {
+        valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+        printf("%s\n", buffer);
+    }
+
+    // Receive data from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+        struct pollfd fdset[1];
+        fdset[0].fd = sock;
+        fdset[0].events = POLLIN;
+        int ret = poll(fdset, 1, 3000);
+        if (ret == -1) {
+            perror("Error polling socket");
+            exit(EXIT_FAILURE);
+        } else if (ret == 0) {
+            printf("total read :%d\n",total_bytes_read);
+            printf("Timeout waiting for data\n");
+            exit(EXIT_FAILURE);
+        } else {
+            valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+            if (valread == 0 ) {
+                // server disconnected
+                break;
+            }
+            if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+                // limit valread to prevent buffer overflow
+                valread = LARGE_BUFFER_SIZE - total_bytes_read;
+            }
+            memcpy(large_buffer + total_bytes_read, buffer, valread);
+            total_bytes_read += valread;
+            printf("Received %d\n",total_bytes_read);
+
+            if (total_bytes_read == LARGE_BUFFER_SIZE) {
+                // stop the loop if all data has been received
+                break;
+            }
+        }
+    }
+    printf("Received %d bytes of data\n", total_bytes_read);
+    close(sock);
+}
+
+
+
+void client_UDP_IPv6(int port) {
+     int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    char buffer[LARGE_BUFFER_SIZE] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+    unsigned int received_checksum = 0;
+    char * conn = "connection...";
+
+    // Create socket file descriptor
     if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
         printf("\n Socket creation error \n");
         exit(EXIT_FAILURE);
@@ -326,54 +416,7 @@ void client_UDP_IPv4(int port) {
     }
     printf("Received %d bytes of data\n", total_bytes_read);
     close(sock);
-}
-
-
 /*
-void client_UDP_IPv6(int port) {
-    struct sockaddr_in6 server_addr, client_addr;
-    int sockfd, recv_len, total_recv = 0;
-    socklen_t client_len;
-    char buf[BUFFER_SIZE];
-
-    if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        error("Error creating socket");
-    }
-
-    memset((char *)&server_addr, 0, sizeof(server_addr));
-    server_addr.sin6_family = AF_INET6;
-    server_addr.sin6_addr = in6addr_any;
-    server_addr.sin6_port = htons(port);
-
-    if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-        error("Error binding socket");
-    }
-
-    printf("Server started on port %d...\n", port);
-
-    while (total_recv < LARGE_BUFFER_SIZE) { // receive 100MB of data
-        memset(buf, 0, BUFFER_SIZE);
-        client_len = sizeof(client_addr);
-
-        if ((recv_len = recvfrom(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_len)) == -1) {
-            error("Error receiving data");
-        }
-
-        char client_addr_str[INET6_ADDRSTRLEN];
-        inet_ntop(AF_INET6, &(client_addr.sin6_addr), client_addr_str, INET6_ADDRSTRLEN);
-
-        if (sendto(sockfd, buf, recv_len, 0, (struct sockaddr *)&client_addr, client_len) == -1) {
-            error("Error sending data");
-        }
-
-        total_recv += recv_len;
-        printf("Received %d bytes of data\n", total_recv);
-
-    }
-
-    close(sockfd);
-}
-
 //must check the function.
 void start_client_UDS_dgram() {
     int sockfd, n;
