@@ -1,6 +1,8 @@
 {
     "files.associations": {
         "inet.h": "c",
-        "poll.h": "c"
+        "poll.h": "c",
+        "cerrno": "c",
+        "error.h": "c"
     }
 }

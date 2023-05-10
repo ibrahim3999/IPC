@@ -13,9 +13,11 @@
 #include <sys/un.h>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include <errno.h>
 
 
-#define PORT 9998
+
+#define PORT 1345
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 104857600//100MB
 #define MAX_MESSAGE_LENGTH 1024
@@ -87,7 +89,6 @@ void chat_client_TCP_IPV4(char *ip_addr, int port) {
         }
     }
 }
-<<<<<<< HEAD
 unsigned int checksum(const char *buf, size_t len) {
     unsigned int sum = 0;
     for (size_t i = 0; i < len; i++) {
@@ -96,22 +97,13 @@ unsigned int checksum(const char *buf, size_t len) {
     return sum;
 }
 //PARTB 
-=======
-//PART B
->>>>>>> origin/main
 void client_TCP_IPv4() {
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
-    char *hello = "Hello from client";
-<<<<<<< HEAD
     char buffer[BUFFER_SIZE] = {0};
     char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
-    
-=======
-    char buffer[MAX_MESSAGE_LENGTH] = {0};
-    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+    unsigned int received_checksum = 0;
 
->>>>>>> origin/main
     // Create socket file descriptor
     if ((sock = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         printf("\n Socket creation error \n");
@@ -134,12 +126,7 @@ void client_TCP_IPv4() {
         exit(EXIT_FAILURE);
     }
 
-    // Send message to server
-    send(sock, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
-
-<<<<<<< HEAD
-    // Read response from server
+    // Receive data from server
     int total_bytes_read = 0;
     while (total_bytes_read < LARGE_BUFFER_SIZE) {
         valread = read(sock, buffer, BUFFER_SIZE);
@@ -153,56 +140,41 @@ void client_TCP_IPv4() {
         }
         memcpy(large_buffer + total_bytes_read, buffer, valread);
         total_bytes_read += valread;
+        printf("Received %d\n",total_bytes_read);
+
     }
-    printf("%d",total_bytes_read);
     // Calculate checksum of received data
-    /**
-    unsigned int expected_checksum = checksum(large_buffer, LARGE_BUFFER_SIZE);
-    send(sock, &expected_checksum, sizeof(unsigned int), 0);
-    unsigned int actual_checksum;
-    if (recv(sock, &actual_checksum, sizeof(unsigned int), 0) < 0) {
-        printf("\nError receiving checksum from server\n");
+    unsigned int calculated_checksum = checksum(large_buffer, LARGE_BUFFER_SIZE);
+
+    //send Ack
+    char *ack ="Ack";
+    send(sock, ack, strlen(ack), 0);
+    printf("Ack message sent\n");
+
+    // Receive checksum from server
+    if (recv(sock, &received_checksum, sizeof(unsigned int), 0) < 0) {
+        perror("receive failed");
         exit(EXIT_FAILURE);
     }
-    printf("Expected checksum: %u\n", expected_checksum);
-    printf("Actual checksum: %u\n", actual_checksum);
-    if (expected_checksum == actual_checksum) {
-        printf("Checksum is correct. %ld bytes received from server\n", total_bytes_read - sizeof(unsigned int));
+
+    // Compare checksums
+    if (calculated_checksum == received_checksum) {
+        printf("Received %d bytes from server with checksum %u, received matching checksum\n", total_bytes_read, received_checksum);
     } else {
-        printf("Checksum is incorrect. %ld bytes received from server\n", total_bytes_read - sizeof(unsigned int));
-    }*/
- 
+        printf("Received %d bytes from server with checksum %u, received non-matching checksum %u\n", total_bytes_read, received_checksum, calculated_checksum);
+    }
+
 close(sock);
 
 }
 
-=======
-   // Read response from server
-    int total_bytes_read = 0;
-    while (total_bytes_read < LARGE_BUFFER_SIZE) {
-    valread = read(sock, buffer, BUFFER_SIZE);
-    if (valread == 0) {
-        // server disconnected
-        break;
-    }
-    if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
-        // limit valread to prevent buffer overflow
-        valread = LARGE_BUFFER_SIZE - total_bytes_read;
-    }
-    memcpy(large_buffer + total_bytes_read, buffer, valread);
-    total_bytes_read += valread;
-}
-    printf("%d bytes received from server\n", total_bytes_read);
-
-    close(sock);
-}
->>>>>>> origin/main
 void client_TCP_IPv6() {
     int sock = 0, valread;
     struct sockaddr_in6 serv_addr;
     char *hello = "Hello from client";
     char buffer[MAX_MESSAGE_LENGTH] = {0};
     char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+    unsigned int received_checksum = 0;
 
     // Create socket file descriptor
     if ((sock = socket(AF_INET6, SOCK_STREAM, 0)) < 0) {
@@ -226,10 +198,6 @@ void client_TCP_IPv6() {
         exit(EXIT_FAILURE);
     }
 
-    // Send message to server
-    send(sock, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
-
     // Read response from server
     int total_bytes_read = 0;
     while (total_bytes_read < LARGE_BUFFER_SIZE) {
@@ -244,42 +212,107 @@ void client_TCP_IPv6() {
         }
         memcpy(large_buffer + total_bytes_read, buffer, valread);
         total_bytes_read += valread;
+        printf("Receive %d\n", total_bytes_read);
     }
     printf("%d bytes received from server\n", total_bytes_read);
 
+    // Calculate checksum of received data
+    unsigned int calculated_checksum = checksum(large_buffer, LARGE_BUFFER_SIZE);
+
+    //send Ack
+    char *ack ="Ack";
+    send(sock, ack, strlen(ack), 0);
+    printf("Ack message sent\n");
+
+    // Receive checksum from server
+    if (recv(sock, &received_checksum, sizeof(unsigned int), 0) < 0) {
+        perror("receive failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Compare checksums
+    if (calculated_checksum == received_checksum) {
+        printf("Received %d bytes from server with checksum %u, received matching checksum\n", total_bytes_read, received_checksum);
+    } else {
+        printf("Received %d bytes from server with checksum %u, received non-matching checksum %u\n", total_bytes_read, received_checksum, calculated_checksum);
+    }
+
+    close(sock);
+
+}
+void client_UDP_IPv4(int port) {
+    int sock = 0, valread;
+    struct sockaddr_in serv_addr;
+    char buffer[LARGE_BUFFER_SIZE] = {0};
+    char large_buffer[LARGE_BUFFER_SIZE] = {0}; // buffer to hold 100MB data
+    unsigned int received_checksum = 0;
+    char * conn = "connection...";
+
+    // Create socket file descriptor
+    if ((sock = socket(AF_INET, SOCK_DGRAM, 0)) < 0) {
+        printf("\n Socket creation error \n");
+        exit(EXIT_FAILURE);
+    }
+
+    // Make the socket non-blocking
+    int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    memset(&serv_addr, '0', sizeof(serv_addr));
+
+    serv_addr.sin_family = AF_INET;
+    serv_addr.sin_port = htons(port);
+
+    // Convert IPv4 and IPv6 addresses from text to binary form
+    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+        printf("\nInvalid address/ Address not supported \n");
+        exit(EXIT_FAILURE);
+    }
+    if (sendto(sock, conn, strlen(conn), 0, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) == -1) {
+        perror("Error sending data");
+        exit(EXIT_FAILURE);
+    }
+
+    // Receive connection message from server
+    int addr_len = sizeof(serv_addr);
+    valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+    printf("%s\n", buffer);
+
+    // Receive data from server
+    int total_bytes_read = 0;
+    while (total_bytes_read < LARGE_BUFFER_SIZE) {
+        valread = recvfrom(sock, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&serv_addr, &addr_len);
+        if (valread == 0 ) {
+            // server disconnected
+            break;
+        }
+        if (valread == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+            // No data available to read, continue loop
+           // printf("dont RecvFrom:%d\n",total_bytes_read);
+            total_bytes_read++;
+            continue;
+        }
+        if (total_bytes_read + valread > LARGE_BUFFER_SIZE) {
+            // limit valread to prevent buffer overflow
+            valread = LARGE_BUFFER_SIZE - total_bytes_read;
+        }
+        memcpy(large_buffer + total_bytes_read, buffer, valread);
+        total_bytes_read += valread;
+        printf("Received %d\n",total_bytes_read);
+
+        if (total_bytes_read == LARGE_BUFFER_SIZE) {
+            // stop the loop if all data has been received
+            break;
+        }
+    }
+
+    printf("Received %d bytes of data\n", total_bytes_read);
     close(sock);
 }
-<<<<<<< HEAD
-=======
 
->>>>>>> origin/main
-void client_UDP_IPv4(char *ip, int port) {
-    struct sockaddr_in server_addr;
-    int sockfd, i, total_sent = 0;
-    char buf[BUFFER_SIZE];
 
-    if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        perror("Error creating socket");
-    }
 
-    memset((char *)&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(ip);
-    server_addr.sin_port = htons(port);
-
-    printf("Sending 100MB data to server %s:%d...\n", ip, port);
-
-    while (total_sent < 100000000) { // send 100MB of data
-        if (sendto(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-            perror("Error sending data");
-        }
-
-        total_sent += BUFFER_SIZE;
-        printf("Bytes Sent : %d\n" ,total_sent);
-    }
-
-    close(sockfd);
-}
+/*
 void client_UDP_IPv6(int port) {
     struct sockaddr_in6 server_addr, client_addr;
     int sockfd, recv_len, total_recv = 0;
@@ -438,13 +471,13 @@ void start_client_pipe() {
 
     close(fd);
 }
-
+*/
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
     //client_TCP_IPv6();
-    client_TCP_IPv4();
-    //client_UDP_IPv4("127.0.0.1",7777);
+    //client_TCP_IPv4();
+    client_UDP_IPv4(2545);
     //client_UDP_IPv6("127.0.0.1",6666);
 
 }

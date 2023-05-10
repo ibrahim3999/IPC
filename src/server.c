@@ -15,7 +15,7 @@
 #include <fcntl.h>
 
 #define SSA  (struct sockaddr *)
-#define PORT 9998
+#define PORT 55500
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE  104857600
 #define MAX_MESSAGE_LENGTH 1024
@@ -120,7 +120,7 @@ char* generate_data(int size) {
 
     return data;
 }
-unsigned int checksum_c(const char *buf, size_t len) {
+unsigned int checksum(const char *buf, size_t len) {
     unsigned int sum = 0;
     for (size_t i = 0; i < len; i++) {
         sum += buf[i];
@@ -133,7 +133,6 @@ void start_server_TCP_IPv4() {
     struct sockaddr_in address;
     int opt = 1;
     socklen_t addrlen = sizeof(address);
-    char *hello = "Hello from server";
     char* data = generate_data(LARGE_BUFFER_SIZE);
 
     // Create socket file descriptor
@@ -171,12 +170,12 @@ void start_server_TCP_IPv4() {
     }
 
     // Send data to client with checksum
-    unsigned int expected_checksum = checksum_c(data, strlen(data));
+    unsigned int expected_checksum = checksum(data, strlen(data));
     unsigned int received_checksum = 0;
     int total_sent = 0;
 
     while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = send(new_socket, data, strlen(data), 0);
+        int bytes_sent = send(new_socket, data, sizeof(data), 0);
         
         if (bytes_sent < 0) {
             perror("send failed");
@@ -184,24 +183,26 @@ void start_server_TCP_IPv4() {
         }
 
         total_sent += bytes_sent;
+        printf("Sent %d\n" , total_sent);
     }
+        //Receive Ack
+        char ack[BUFFER_SIZE] = {0};
+        int secceess=0;
+        secceess = read(new_socket, ack, BUFFER_SIZE);
+        printf("%s Received\n",ack);
 
-    // Receive checksum from client
-    if (recv(new_socket, &received_checksum, sizeof(unsigned int), 0) < 0) {
-        perror("receive failed");
+
+    // Send checksum to client
+    if (send(new_socket, &expected_checksum, sizeof(unsigned int), 0) < 0) {
+        perror("send failed");
         exit(EXIT_FAILURE);
     }
-
-    // Compare checksums
-    if (expected_checksum == received_checksum) {
-        printf("Sent %d bytes to client with checksum %u, received matching checksum\n", total_sent, expected_checksum);
-    } else {
-        printf("Sent %d bytes to client with checksum %u, received non-matching checksum %u\n", total_sent, expected_checksum, received_checksum);
-    }
-
+    printf("Check sum sent : %u\n",expected_checksum);
+    
     close(new_socket);
     close(server_fd);
 }
+
 
 void start_server_TCP_IPv6() {
     int server_fd, new_socket, valread;
@@ -209,8 +210,6 @@ void start_server_TCP_IPv6() {
     int opt = 1;
     socklen_t addrlen = sizeof(address);
     char* data = generate_data(LARGE_BUFFER_SIZE);
-    char *hello = "Hello from server";
-
 
     // Create socket file descriptor
     if ((server_fd = socket(AF_INET6, SOCK_STREAM, 0)) == 0) {
@@ -246,35 +245,58 @@ void start_server_TCP_IPv6() {
         exit(EXIT_FAILURE);
     }
 
-    // Send 100MB (104857600 bytes) of data to client
+    // Send data to client with checksum
+    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int received_checksum = 0;
     int total_sent = 0;
+
     while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = send(new_socket, data, strlen(data), 0);
+        int bytes_sent = send(new_socket, data, sizeof(data), 0);
+        
         if (bytes_sent < 0) {
             perror("send failed");
             exit(EXIT_FAILURE);
         }
-        total_sent += bytes_sent;
-    }
 
-    printf("Sent %d bytes to client\n", total_sent);
+        total_sent += bytes_sent;
+        printf("Sent %d\n" , total_sent);
+    }
+        //Receive Ack
+        char ack[BUFFER_SIZE] = {0};
+        int secceess=0;
+        secceess = read(new_socket, ack, BUFFER_SIZE);
+        printf("%s Received\n",ack);
+
+
+    // Send checksum to client
+    if (send(new_socket, &expected_checksum, sizeof(unsigned int), 0) < 0) {
+        perror("send failed");
+        exit(EXIT_FAILURE);
+    }
+    printf("Check sum sent : %u\n",expected_checksum);
+    
     close(new_socket);
     close(server_fd);
 }
+
+
 void error(char *msg) {
     perror(msg);
     exit(EXIT_FAILURE);
 }
+
+
 void start_server_UDP_IPv4(int port) {
     struct sockaddr_in server_addr, client_addr;
-    int sockfd, recv_len, total_recv = 0;
-    socklen_t client_len;
-    char buf[BUFFER_SIZE];
-    char* data = generate_data(LARGE_BUFFER_SIZE);//100MB
-    
+    int sockfd, total_sent = 0;
+    socklen_t client_len = sizeof(client_addr);
+    char* data = generate_data(LARGE_BUFFER_SIZE);
+    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int received_checksum = 0;
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
-        error("Error creating socket");
+        perror("Error creating socket");
+        exit(EXIT_FAILURE);
     }
 
     memset((char *)&server_addr, 0, sizeof(server_addr));
@@ -283,30 +305,33 @@ void start_server_UDP_IPv4(int port) {
     server_addr.sin_port = htons(port);
 
     if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
-        error("Error binding socket");
+        perror("Error binding socket");
+        exit(EXIT_FAILURE);
     }
-
-    printf("Server started on port %d...\n", port);
-
-    while (total_recv < LARGE_BUFFER_SIZE) { // receive 100MB of data
-        memset(buf, 0, BUFFER_SIZE);
-        client_len = sizeof(client_addr);
-
-        if ((recv_len = recvfrom(sockfd, buf, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_len)) == -1) {
-            error("Error receiving data");
-        }
-
-        if (sendto(sockfd, data, recv_len, 0, (struct sockaddr *)&client_addr, client_len) == -1) {
-            error("Error sending data");
-        }
-
-        total_recv += recv_len;
-        printf("Received %d bytes of data\n", total_recv);
-
+    // Receive data from client to retrieve client's address and port information
+    char buffer[BUFFER_SIZE];
+    if (recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&client_addr, &client_len) == -1) {
+        perror("Error receiving data");
+        exit(EXIT_FAILURE);
     }
-
+    while (total_sent < LARGE_BUFFER_SIZE) { // send 100MB of data
+        int send_len = BUFFER_SIZE;
+        if (total_sent + BUFFER_SIZE > LARGE_BUFFER_SIZE) {
+            send_len = LARGE_BUFFER_SIZE - total_sent;
+        }
+        if (sendto(sockfd, data + total_sent, send_len, 0, (struct sockaddr *)&client_addr, client_len) == -1) {
+            perror("Error sending data");
+            exit(EXIT_FAILURE);
+        }
+        total_sent += send_len;
+       
+    }
+    printf("Sent %d bytes of data\n", total_sent);
     close(sockfd);
 }
+
+
+/*
 void start_server_UDP_IPv6(char *ip, int port) {
     struct sockaddr_in6 server_addr;
     int sockfd, i, total_sent = 0;
@@ -337,7 +362,7 @@ void start_server_UDP_IPv6(char *ip, int port) {
     close(sockfd);
 }
 
-/***
+/*
 //must check the function..
 void start_server_UDS_dgram() {
     int server_fd, valread;
@@ -463,15 +488,6 @@ void start_server_UDS_stream() {
     unlink(UDS_PATH);
 }
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/mman.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <string.h>
-
 #define FILENAME "example.txt" //change the file name.
 #define FILESIZE 4096
 
@@ -561,9 +577,9 @@ void start_server_pipe() {
 
 */
 int main(){
-    start_server_TCP_IPv4();
+    //start_server_TCP_IPv4();
     //start_server_TCP_IPv6();
-   // start_server_UDP_IPv4(7777);
+    start_server_UDP_IPv4(2545);
     //start_server_UDP_IPv6(6666);
 
     return 0;
