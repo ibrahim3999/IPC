@@ -19,7 +19,8 @@
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE  104857600
 #define MAX_MESSAGE_LENGTH 1024
-#define UDS_PATH "/tmp/mysocket"
+#define REQUEST "hello world"
+#define UDS_PATH "/tmp/my_unix_socket5552"
 
 
 void chat_server_TCP_IPV4(int port)
@@ -203,7 +204,6 @@ void start_server_TCP_IPv4() {
     close(server_fd);
 }
 
-
 void start_server_TCP_IPv6() {
     int server_fd, new_socket, valread;
     struct sockaddr_in6 address;
@@ -279,12 +279,10 @@ void start_server_TCP_IPv6() {
     close(server_fd);
 }
 
-
 void error(char *msg) {
     perror(msg);
     exit(EXIT_FAILURE);
 }
-
 
 void start_server_UDP_IPv4(int port) {
     struct sockaddr_in server_addr, client_addr;
@@ -329,8 +327,6 @@ void start_server_UDP_IPv4(int port) {
     printf("Sent %d bytes of data\n", total_sent);
     close(sockfd);
 }
-
-
 
 void start_server_UDP_IPv6(char *ip, int port) {
     struct sockaddr_in6 server_addr, client_addr;
@@ -377,71 +373,64 @@ void start_server_UDP_IPv6(char *ip, int port) {
     close(sockfd);
 }
 
-
-//must check the function..
 void start_server_UDS_dgram() {
-    int server_fd, valread;
-    struct sockaddr_un address;
-    int opt = 1;
-    socklen_t addrlen = sizeof(address);
-    char *hello = "Hello from server";
-    char* data =generate_data(LARGE_BUFFER_SIZE);
+    int sockfd, n;
+    struct sockaddr_un servaddr, cliaddr;
+    socklen_t len = sizeof(cliaddr);
+    char* data = generate_data(LARGE_BUFFER_SIZE);
 
     // Create socket file descriptor
-    if ((server_fd = socket(AF_UNIX, SOCK_DGRAM, 0)) == 0) {
-        perror("socket failed");
+    sockfd = socket(AF_UNIX, SOCK_DGRAM, 0);
+    if (sockfd < 0) {
+        perror("socket creation failed");
         exit(EXIT_FAILURE);
     }
 
-    // Set socket options
-    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-        perror("setsockopt failed");
-        exit(EXIT_FAILURE);
-    }
+    // Set server address
+    memset(&servaddr, 0, sizeof(servaddr));
+    servaddr.sun_family = AF_UNIX;
+    strcpy(servaddr.sun_path, UDS_PATH);
 
-    // Bind socket to UDS path
-    memset(&address, 0, sizeof(address));
-    address.sun_family = AF_UNIX;
-//    #define UDS_PATH "/tmp/my_unix_socket" //must define the relevant path
-    strncpy(address.sun_path, UDS_PATH, sizeof(address.sun_path) - 1);
-
-    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+    // Bind socket to server address
+    if (bind(sockfd, (struct sockaddr*)&servaddr, sizeof(servaddr)) < 0) {
         perror("bind failed");
         exit(EXIT_FAILURE);
     }
 
-    // Receive message from client
-    char buffer[BUFFER_SIZE] = {0};
-    int bytes_received = recvfrom(server_fd, buffer, BUFFER_SIZE, 0, (struct sockaddr *)&address, &addrlen);
-    if (bytes_received < 0) {
-        perror("recvfrom failed");
+    // Receive request from client
+    char buffer[BUFFER_SIZE];
+    if ((n = recvfrom(sockfd, buffer, BUFFER_SIZE, 0, (struct sockaddr*)&cliaddr, &len)) < 0) {
+        perror("error receiving request from client");
         exit(EXIT_FAILURE);
     }
+    buffer[n] = '\0';
+    printf("Received request: %s\n", buffer);
 
-    printf("Received message from client: %s\n", buffer);
-
-    // Send response to client
+    // Send 100MB of data to client
     int total_sent = 0;
     while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = sendto(server_fd, hello, strlen(hello), 0, (struct sockaddr *)&address, addrlen);
-        if (bytes_sent < 0) {
-            perror("sendto failed");
+        int send_len = BUFFER_SIZE;
+        if (total_sent + BUFFER_SIZE > LARGE_BUFFER_SIZE) {
+            send_len = LARGE_BUFFER_SIZE - total_sent;
+        }
+        if (sendto(sockfd, data + total_sent, send_len, 0, (struct sockaddr *)&cliaddr, len) == -1) {
+            perror("Error sending data");
             exit(EXIT_FAILURE);
         }
-        total_sent += bytes_sent;
+        total_sent += send_len;
+        printf("Sent: %d\n", total_sent);
     }
 
-    printf("Sent %d bytes to client\n", total_sent);
-    close(server_fd);
-    unlink(UDS_PATH);
+    close(sockfd);
 }
-/*
+
 void start_server_UDS_stream() {
     int server_fd, new_socket, valread;
     struct sockaddr_un address;
     int opt = 1;
     socklen_t addrlen = sizeof(address);
     char *hello = "Hello from server";
+    char *data = generate_data(LARGE_BUFFER_SIZE);
 
     // Create socket file descriptor
     if ((server_fd = socket(AF_UNIX, SOCK_STREAM, 0)) == 0) {
@@ -477,7 +466,7 @@ void start_server_UDS_stream() {
         exit(EXIT_FAILURE);
     }
 
-    // Receive message from client
+    // Receive request from client
     char buffer[BUFFER_SIZE] = {0};
     int bytes_received = recv(new_socket, buffer, BUFFER_SIZE, 0);
     if (bytes_received < 0) {
@@ -485,27 +474,32 @@ void start_server_UDS_stream() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Received message from client: %s\n", buffer);
+    printf("Received request: %s\n", buffer);
 
-    // Send response to client
+    // Send 100MB of data to client
     int total_sent = 0;
     while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = send(new_socket, hello, strlen(hello), 0);
+        int send_len = BUFFER_SIZE;
+        if (total_sent + BUFFER_SIZE > LARGE_BUFFER_SIZE) {
+            send_len = LARGE_BUFFER_SIZE - total_sent;
+        }
+        int bytes_sent = send(new_socket, data + total_sent, send_len, 0);
         if (bytes_sent < 0) {
             perror("send failed");
             exit(EXIT_FAILURE);
         }
         total_sent += bytes_sent;
+        printf("Sent: %d\n", total_sent);
     }
 
-    printf("Sent %d bytes to client\n", total_sent);
     close(new_socket);
     close(server_fd);
     unlink(UDS_PATH);
 }
 
-#define FILENAME "example.txt" //change the file name.
-#define FILESIZE 4096
+
+
+/*
 
 void start_server_mmap() {
     int fd;
@@ -595,8 +589,9 @@ void start_server_pipe() {
 int main(){
     //start_server_TCP_IPv4();
     //start_server_TCP_IPv6();
-   // start_server_UDP_IPv4(2222);
+   //start_server_UDP_IPv4(2222);
     //start_server_UDP_IPv6("::1",10101);
+start_server_UDS_dgram();
 
     return 0;
 }
