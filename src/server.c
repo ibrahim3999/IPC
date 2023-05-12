@@ -17,11 +17,15 @@
 #define SSA  (struct sockaddr *)
 #define PORT 55500
 #define BUFFER_SIZE 1024
+#define MMBUFFERSIZE 1024*100*16
 #define LARGE_BUFFER_SIZE  104857600
 #define MAX_MESSAGE_LENGTH 1024
 #define REQUEST "hello world"
 #define UDS_PATH "/tmp/my_unix_socket5552"
-
+#define FILENAME "b.txt"
+#define FILESIZE 100*1024*1024
+#define SHARED_FILE "/my_shared_file"
+#define MESSAGE_SIZE 16
 
 void chat_server_TCP_IPV4(int port)
 {
@@ -498,53 +502,114 @@ void start_server_UDS_stream() {
 }
 
 
-
-/*
+// Server function
 
 void start_server_mmap() {
     int fd;
-    char *mapped;
-
-    // Create file and memory map
-    if ((fd = open(FILENAME, O_RDWR | O_CREAT, S_IRUSR | S_IWUSR)) == -1) {
+    char* mapped;
+    struct stat file_info;
+    pid_t pid;
+    char * data=generate_data(LARGE_BUFFER_SIZE);
+    
+    // Create a file for mmap
+    fd = open("mmap_file", O_RDWR | O_CREAT, 0666);
+    if (fd < 0) {
         perror("open failed");
         exit(EXIT_FAILURE);
     }
 
-    if (ftruncate(fd, FILESIZE) == -1) {
+    // Extend the file to the buffer size
+    if (ftruncate(fd, MMBUFFERSIZE) < 0) {
         perror("ftruncate failed");
         exit(EXIT_FAILURE);
     }
 
-    if ((mapped = mmap(NULL, FILESIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0)) == MAP_FAILED) {
+    // Map the file into memory
+    mapped = mmap(NULL, MMBUFFERSIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (mapped == MAP_FAILED) {
         perror("mmap failed");
         exit(EXIT_FAILURE);
     }
 
-    // Read from memory map
-    printf("Waiting for client to write to memory map...\n");
-    while (mapped[0] == '\0') {
-        usleep(1000);
-    }
-
-    printf("Received message from client: %s\n", mapped);
-
-    // Write to memory map
-    char *response = "Hello from server";
-    strncpy(mapped, response, strlen(response));
-
-    printf("Sent message to client: %s\n", mapped);
-
-    // Clean up
-    if (munmap(mapped, FILESIZE) == -1) {
-        perror("munmap failed");
+    // Close the file
+    if (close(fd) < 0) {
+        perror("close failed");
         exit(EXIT_FAILURE);
     }
+    // Write data to the shared memory
+    size_t total_sent=0;
+    while (total_sent < LARGE_BUFFER_SIZE) {
+        int send_len = LARGE_BUFFER_SIZE - total_sent;
+        strncpy(mapped+total_sent, data , send_len);
+        total_sent += send_len;
+    }
+            printf("Sucssesfully Sent %ld Bytes\n",total_sent);
 
-    close(fd);
-    unlink(FILENAME);
+
+    // Fork a child process to handle client connection
+    pid = fork();
+    if (pid < 0) {
+        perror("fork failed");
+        exit(EXIT_FAILURE);
+    } else if (pid == 0) { // Child process handles client connection
+        int fd;
+        char buffer[MMBUFFERSIZE];
+        ssize_t bytes_read;
+
+        // Open the mmap file
+        fd = open("mmap_file", O_RDONLY);
+        if (fd < 0) {
+            perror("open failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Map the file into memory
+        mapped = mmap(NULL, MMBUFFERSIZE, PROT_READ, MAP_SHARED , fd, 0);
+        if (mapped == MAP_FAILED) {
+            perror("mmap failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Close the file
+        if (close(fd) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Wait for incoming data from the server using poll
+        struct pollfd poll_fd;
+        poll_fd.fd = STDIN_FILENO;
+        poll_fd.events = POLLIN;
+        int poll_result = poll(&poll_fd, 1, -1);
+        if (poll_result < 0) {
+            perror("poll failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Read data from the shared memory
+        bytes_read = read(STDIN_FILENO, buffer, MMBUFFERSIZE);
+        if (bytes_read < 0) {
+            perror("read failed");
+            exit(EXIT_FAILURE);
+        }
+        // Compare the data read with the data written by the server
+        if (strncmp(buffer, mapped, BUFFER_SIZE) == 0) {
+            printf("\nReceived data matches!\n");
+        } else {
+            printf("\nReceived data does not match!\n");
+        }
+
+        // Unmap the shared memory
+        if (munmap(mapped, BUFFER_SIZE) < 0) {
+            perror("munmap failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Exit the child process
+        exit(EXIT_SUCCESS);
+    }
 }
-
+/*
 void start_server_pipe() {
     int fd;
     char buffer[BUFFER_SIZE];
@@ -587,11 +652,7 @@ void start_server_pipe() {
 
 */
 int main(){
-    //start_server_TCP_IPv4();
-    //start_server_TCP_IPv6();
-   //start_server_UDP_IPv4(2222);
-    //start_server_UDP_IPv6("::1",10101);
-start_server_UDS_dgram();
+start_server_mmap();
 
     return 0;
 }
