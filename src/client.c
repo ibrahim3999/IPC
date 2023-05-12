@@ -14,6 +14,7 @@
 #include <fcntl.h>
 #include <sys/stat.h>
 #include <errno.h>
+#include <sys/mman.h>
 
 
 #define PORT 1345
@@ -23,7 +24,10 @@
 #define SSA  (struct sockaddr *)
 #define UDS_PATH "/tmp/my_unix_socket5552"
 #define REQUEST "hello world"
-
+#define FILENAME "b.txt"
+#define FILESIZE 100*1024*1024
+#define SHARED_FILE "/my_shared_file"
+#define MESSAGE_SIZE 16
 
 
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
@@ -239,6 +243,7 @@ void client_TCP_IPv6() {
     close(sock);
 
 }
+
 void client_UDP_IPv4(int port) {
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
@@ -326,6 +331,7 @@ void client_UDP_IPv4(int port) {
     printf("Received %d bytes of data\n", total_bytes_read);
     close(sock);
 }
+
 void client_UDP_IPv6(int port) {
     int sock = 0, valread;
     struct sockaddr_in6 serv_addr;
@@ -553,6 +559,53 @@ void client_UDS_stream() {
     close(sock);
 }
 
+#define MMBUFFERSIZE 100*1024*1024 // 100MB
+
+void client_mmap() {
+    int fd;
+    char* mapped;
+    struct stat file_info;
+
+    // Open the mmap file
+    fd = open("mmap_file", O_RDONLY);
+    if (fd < 0) {
+        perror("open failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Map the file into memory
+    mapped = mmap(NULL, MMBUFFERSIZE, PROT_READ, MAP_SHARED , fd, 0);
+    if (mapped == MAP_FAILED) {
+        perror("mmap failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Close the file
+    if (close(fd) < 0) {
+        perror("close failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Read data from the shared memory in chunks
+    size_t total_bytes_read = 0;
+    while (total_bytes_read < MMBUFFERSIZE) {
+        size_t bytes_to_read = MMBUFFERSIZE - total_bytes_read;
+        if (bytes_to_read > BUFFER_SIZE) {
+            bytes_to_read = BUFFER_SIZE;
+        }
+        total_bytes_read += bytes_to_read;
+    }
+        printf("\nReading %lu bytes from the shared memory...\n", total_bytes_read);
+
+    // Unmap the shared memory
+    if (munmap(mapped, MMBUFFERSIZE) < 0) {
+        perror("munmap failed");
+        exit(EXIT_FAILURE);
+    }
+}
+
+
+
 /*
 void start_client_pipe() {
     int fd;
@@ -571,7 +624,7 @@ void start_client_pipe() {
         perror("write failed");
         exit(EXIT_FAILURE);
     }
-
+tmp.txt"
     printf("Sent message to server: %s\n", message);
 
     // Wait for response from server
@@ -585,16 +638,15 @@ void start_client_pipe() {
 
     close(fd);
 }
+
 */
+
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
-    //client_TCP_IPv6();
-    //client_TCP_IPv4();
-    //client_UDP_IPv4(2222);
-    //client_TCP_IPv6(2222);
-    //client_UDP_IPv6(10101);
-    //client_UDS_stream();
-    client_UDS_dgram();
+    client_mmap();
 
-}
+} 
+
+
+
