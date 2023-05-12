@@ -501,7 +501,6 @@ void start_server_UDS_stream() {
     unlink(UDS_PATH);
 }
 
-
 void start_server_mmap() {
     int fd;
     char* mapped;
@@ -607,24 +606,16 @@ void start_server_mmap() {
         exit(EXIT_SUCCESS);
     }
 }
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <poll.h>
-
-#define LARGE_BUFFER_SIZE (100 * 1024 * 1024)
-#define BUFFER_SIZE 4096
-
 void start_server_pipe() {
     char *data = generate_data(LARGE_BUFFER_SIZE);
-    int fd[2];
+    int fd;
     pid_t pid;
     char buffer[BUFFER_SIZE];
+    const char *fifo_name = "/tmp/my_fifo";
 
-    if (pipe(fd) == -1) {
-        perror("Pipe creation failed");
+    // Create a named pipe (FIFO)
+    if (mkfifo(fifo_name, 0666) == -1) {
+        perror("Failed to create FIFO");
         exit(EXIT_FAILURE);
     }
 
@@ -636,7 +627,11 @@ void start_server_pipe() {
     }
 
     if (pid > 0) {  // Parent process
-        close(fd[0]);  // Close read end of the pipe
+        fd = open(fifo_name, O_WRONLY);  // Open the FIFO for writing
+        if (fd == -1) {
+            perror("Failed to open FIFO for writing");
+            exit(EXIT_FAILURE);
+        }
 
         // Send 100MB of data
         size_t bytes_written = 0;
@@ -644,7 +639,7 @@ void start_server_pipe() {
             size_t bytes_to_write = (LARGE_BUFFER_SIZE - bytes_written < BUFFER_SIZE) ?
                                     LARGE_BUFFER_SIZE - bytes_written : BUFFER_SIZE;
             memset(buffer, data+bytes_written, bytes_to_write);  // Fill buffer with 'A'
-            ssize_t result = write(fd[1], buffer, bytes_to_write);
+            ssize_t result = write(fd, buffer, bytes_to_write);
             if (result < 0) {
                 perror("Write failed");
                 exit(EXIT_FAILURE);
@@ -652,12 +647,16 @@ void start_server_pipe() {
             bytes_written += result;
         }
         printf("bytes written %ld\n",bytes_written);
-        close(fd[1]);  // Close write end of the pipe
+        close(fd);  // Close the FIFO
     } else {  // Child process
-        close(fd[1]);  // Close write end of the pipe
+        fd = open(fifo_name, O_RDONLY);  // Open the FIFO for reading
+        if (fd == -1) {
+            perror("Failed to open FIFO for reading");
+            exit(EXIT_FAILURE);
+        }
 
         struct pollfd fd_set[1];
-        fd_set[0].fd = fd[0];
+        fd_set[0].fd = fd;
         fd_set[0].events = POLLIN;
 
         ssize_t bytes_read;
@@ -671,7 +670,7 @@ void start_server_pipe() {
             }
 
             if (fd_set[0].revents & POLLIN) {
-                bytes_read = read(fd[0], buffer, BUFFER_SIZE);
+                bytes_read = read(fd, buffer, BUFFER_SIZE);
                 if (bytes_read > 0) {
                     total_bytes_read += bytes_read;
                 } else if (bytes_read == 0) {
@@ -685,12 +684,16 @@ void start_server_pipe() {
         }
 
         printf("Total bytes read: %ld\n", total_bytes_read);
-        close(fd[0]);  // Close read end of the pipe
+        close(fd);  // Close the FIFO
         exit(EXIT_SUCCESS);
     }
+
+    // Remove the named pipe (FIFO)
+    if (unlink(fifo_name) == -1) {
+        perror("Failed to remove FIFO");
+        exit(EXIT_FAILURE);
+    }
 }
-
-
 
 int main(){
 //start_server_mmap();

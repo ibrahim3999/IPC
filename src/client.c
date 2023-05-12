@@ -31,8 +31,6 @@
 #define SHARED_FILE "/my_shared_file"
 #define MESSAGE_SIZE 16
 
-
-
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
     int client_fd;
     struct sockaddr_in server_addr;
@@ -610,45 +608,33 @@ void client_mmap() {
 
 
 void client_pipe() {
-    int fd[2];
-    pid_t pid;
+    int fd;
     char buffer[BUFFER_SIZE];
+    ssize_t bytes_read;
 
-    if (pipe(fd) == -1) {
-        perror("Pipe creation failed");
+    // Create named pipe
+    if (mkfifo("myfifo", 0666) < 0) {
+        perror("mkfifo failed");
         exit(EXIT_FAILURE);
     }
 
-    pid = fork();
-
-    if (pid < 0) {
-        perror("Fork failed");
+    // Open named pipe for writing
+    if ((fd = open("myfifo", O_WRONLY)) < 0) {
+        perror("open failed");
         exit(EXIT_FAILURE);
     }
 
-    if (pid > 0) {  // Parent process
-        close(fd[1]);  // Close write end of the pipe
-
-        ssize_t bytes_read;
-        size_t total_bytes_read = 0;
-        while ((bytes_read = read(fd[0], buffer, BUFFER_SIZE)) > 0) {
-            total_bytes_read += bytes_read;
-            printf("Read %ld bytes from server: %s\n", bytes_read, buffer);
-        }
-
-        if (bytes_read < 0) {
-            perror("Read failed");
+    // Read from stdin and write to pipe
+    while ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE)) > 0) {
+        ssize_t bytes_written = write(fd, buffer, bytes_read);
+        if (bytes_written < 0) {
+            perror("write failed");
             exit(EXIT_FAILURE);
         }
-
-        printf("Total bytes read: %ld\n", total_bytes_read);
-        close(fd[0]);  // Close read end of the pipe
-        exit(EXIT_SUCCESS);
-    } else {  // Child process
-        close(fd[0]);  // Close read end of the pipe
-        close(fd[1]);  // Close write end of the pipe
-        exit(EXIT_SUCCESS);
     }
+
+    close(fd);
+    unlink("myfifo"); // Remove named pipe
 }
 
 void main() {
