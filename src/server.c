@@ -502,8 +502,6 @@ void start_server_UDS_stream() {
 }
 
 
-// Server function
-
 void start_server_mmap() {
     int fd;
     char* mapped;
@@ -609,8 +607,93 @@ void start_server_mmap() {
         exit(EXIT_SUCCESS);
     }
 }
-int main(){
-start_server_mmap();
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <poll.h>
+
+#define LARGE_BUFFER_SIZE (100 * 1024 * 1024)
+#define BUFFER_SIZE 4096
+
+void start_server_pipe() {
+    char *data = generate_data(LARGE_BUFFER_SIZE);
+    int fd[2];
+    pid_t pid;
+    char buffer[BUFFER_SIZE];
+
+    if (pipe(fd) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        close(fd[0]);  // Close read end of the pipe
+
+        // Send 100MB of data
+        size_t bytes_written = 0;
+        while (bytes_written < LARGE_BUFFER_SIZE) {
+            size_t bytes_to_write = (LARGE_BUFFER_SIZE - bytes_written < BUFFER_SIZE) ?
+                                    LARGE_BUFFER_SIZE - bytes_written : BUFFER_SIZE;
+            memset(buffer, data+bytes_written, bytes_to_write);  // Fill buffer with 'A'
+            ssize_t result = write(fd[1], buffer, bytes_to_write);
+            if (result < 0) {
+                perror("Write failed");
+                exit(EXIT_FAILURE);
+            }
+            bytes_written += result;
+        }
+        printf("bytes written %ld\n",bytes_written);
+        close(fd[1]);  // Close write end of the pipe
+    } else {  // Child process
+        close(fd[1]);  // Close write end of the pipe
+
+        struct pollfd fd_set[1];
+        fd_set[0].fd = fd[0];
+        fd_set[0].events = POLLIN;
+
+        ssize_t bytes_read;
+        size_t total_bytes_read = 0;
+
+        while (1) {
+            int poll_result = poll(fd_set, 1, -1);
+            if (poll_result < 0) {
+                perror("Poll failed");
+                exit(EXIT_FAILURE);
+            }
+
+            if (fd_set[0].revents & POLLIN) {
+                bytes_read = read(fd[0], buffer, BUFFER_SIZE);
+                if (bytes_read > 0) {
+                    total_bytes_read += bytes_read;
+                } else if (bytes_read == 0) {
+                    // EOF, no more data to read
+                    break;
+                } else {
+                    perror("Read failed");
+                    exit(EXIT_FAILURE);
+                }
+            }
+        }
+
+        printf("Total bytes read: %ld\n", total_bytes_read);
+        close(fd[0]);  // Close read end of the pipe
+        exit(EXIT_SUCCESS);
+    }
+}
+
+
+
+int main(){
+//start_server_mmap();
+start_server_pipe();
     return 0;
 }
