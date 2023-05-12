@@ -609,48 +609,6 @@ void start_server_mmap() {
         exit(EXIT_SUCCESS);
     }
 }
-/*
-void start_server_pipe() {
-    int fd;
-    char buffer[BUFFER_SIZE];
-
-    // Create named pipe
-    if (mkfifo(FILENAME, 0666) == -1) {
-        perror("mkfifo failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Open pipe for reading
-    if ((fd = open(FILENAME, O_RDONLY)) == -1) {
-        perror("open failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Read from pipe
-    int bytes_received = read(fd, buffer, BUFFER_SIZE);
-    if (bytes_received == -1) {
-        perror("read failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Received message from client: %s\n", buffer);
-
-    // Write to pipe
-    char *response = "Hello from server";
-    int bytes_sent = write(fd, response, strlen(response));
-    if (bytes_sent == -1) {
-        perror("write failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Sent message to client: %s\n");
-
-    // Clean up
-    close(fd);
-    unlink(FILENAME);
-}
-
-*/
 int main(){
 start_server_mmap();
 
