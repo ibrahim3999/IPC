@@ -606,41 +606,6 @@ void client_mmap() {
 
 
 
-/*
-void start_client_pipe() {
-    int fd;
-    char buf[1024];
-    const char* message = "Hello from client";
-    int message_len = strlen(message);
-
-    // Open named pipe for writing
-    if ((fd = open(FILENAME, O_WRONLY)) == -1) {
-        perror("open failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Send message to server
-    if (write(fd, message, message_len) == -1) {
-        perror("write failed");
-        exit(EXIT_FAILURE);
-    }
-tmp.txt"
-    printf("Sent message to server: %s\n", message);
-
-    // Wait for response from server
-    int bytes_read = read(fd, buf, sizeof(buf));
-    if (bytes_read == -1) {
-        perror("read failed");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("Received response from server: %s\n", buf);
-
-    close(fd);
-}
-
-*/
-
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
