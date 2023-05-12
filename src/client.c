@@ -1,3 +1,5 @@
+
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,6 +30,7 @@
 #define FILESIZE 100*1024*1024
 #define SHARED_FILE "/my_shared_file"
 #define MESSAGE_SIZE 16
+
 
 
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
@@ -606,10 +609,53 @@ void client_mmap() {
 
 
 
+void client_pipe() {
+    int fd[2];
+    pid_t pid;
+    char buffer[BUFFER_SIZE];
+
+    if (pipe(fd) == -1) {
+        perror("Pipe creation failed");
+        exit(EXIT_FAILURE);
+    }
+
+    pid = fork();
+
+    if (pid < 0) {
+        perror("Fork failed");
+        exit(EXIT_FAILURE);
+    }
+
+    if (pid > 0) {  // Parent process
+        close(fd[1]);  // Close write end of the pipe
+
+        ssize_t bytes_read;
+        size_t total_bytes_read = 0;
+        while ((bytes_read = read(fd[0], buffer, BUFFER_SIZE)) > 0) {
+            total_bytes_read += bytes_read;
+            printf("Read %ld bytes from server: %s\n", bytes_read, buffer);
+        }
+
+        if (bytes_read < 0) {
+            perror("Read failed");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Total bytes read: %ld\n", total_bytes_read);
+        close(fd[0]);  // Close read end of the pipe
+        exit(EXIT_SUCCESS);
+    } else {  // Child process
+        close(fd[0]);  // Close read end of the pipe
+        close(fd[1]);  // Close write end of the pipe
+        exit(EXIT_SUCCESS);
+    }
+}
+
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
-    client_mmap();
+  //  client_mmap();
+  client_pipe();
 
 } 
 
