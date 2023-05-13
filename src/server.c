@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 #include <fcntl.h>
+#include <sys/wait.h>
 
 #define SSA  (struct sockaddr *)
 #define PORT 55500
@@ -188,13 +189,11 @@ void start_server_TCP_IPv4() {
         }
 
         total_sent += bytes_sent;
-        printf("Sent %d\n" , total_sent);
     }
         //Receive Ack
         char ack[BUFFER_SIZE] = {0};
         int secceess=0;
         secceess = read(new_socket, ack, BUFFER_SIZE);
-        printf("%s Received\n",ack);
 
 
     // Send checksum to client
@@ -203,6 +202,7 @@ void start_server_TCP_IPv4() {
         exit(EXIT_FAILURE);
     }
     printf("Check sum sent : %u\n",expected_checksum);
+    printf("Sent %d\n" , total_sent);
     
     close(new_socket);
     close(server_fd);
@@ -501,6 +501,9 @@ void start_server_UDS_stream() {
     unlink(UDS_PATH);
 }
 
+
+// Server function
+
 void start_server_mmap() {
     int fd;
     char* mapped;
@@ -606,110 +609,90 @@ void start_server_mmap() {
         exit(EXIT_SUCCESS);
     }
 }
-void start_server_pipe() {
-    char *data = generate_data(LARGE_BUFFER_SIZE);
-    int fd;
+
+
+ void start_server_pipe() {
+    int fds[2];
     pid_t pid;
-    char buffer[BUFFER_SIZE];
-    const char *fifo_name = "/tmp/my_fifo1";   
-    // Create a named pipe (FIFO)
-    if (mkfifo(fifo_name, 0666) == -1) {
-       perror("Failed to create FIFO");
+    char * data = malloc(LARGE_BUFFER_SIZE);
+    memset(data, 'a', LARGE_BUFFER_SIZE); // Fill data with 'a' characters
+
+    // Create the pipe
+    if (pipe(fds) < 0) {
+        perror("pipe failed");
         exit(EXIT_FAILURE);
     }
 
+    // Fork a child process to handle client connection
     pid = fork();
-
     if (pid < 0) {
-        perror("Fork failed");
+        perror("fork failed");
         exit(EXIT_FAILURE);
-    }
+    } else if (pid == 0) { // Child process handles client connection
 
-    if (pid > 0) {  // Parent process
-        fd = open(fifo_name, O_WRONLY);  // Open the FIFO for writing
-        if (fd == -1) {
-            perror("Failed to open FIFO for writing");
+        // Close the read end of the pipe
+        if (close(fds[0]) < 0) {
+            perror("close failed");
             exit(EXIT_FAILURE);
         }
 
-        // Send 100MB of data
-        size_t bytes_written = 0;
-        while (bytes_written < LARGE_BUFFER_SIZE) {
-            size_t bytes_to_write = (LARGE_BUFFER_SIZE - bytes_written < BUFFER_SIZE) ?
-                                    LARGE_BUFFER_SIZE - bytes_written : BUFFER_SIZE;
-            memset(buffer, data+bytes_written, bytes_to_write);  // Fill buffer with 'A'
-
-            // Write to FIFO
-            ssize_t result = write(fd, buffer, bytes_to_write);
-            if (result < 0) {
-                perror("Write failed");
-                exit(EXIT_FAILURE);
-            }
-            bytes_written += result;
-
-            // Write to stdout
-            fwrite(buffer, 1, bytes_to_write, stdout);
-        }
-        printf("bytes written %ld\n",bytes_written);
-        close(fd);  // Close the FIFO
-    } else {  // Child process
-        fd = open(fifo_name, O_RDONLY);  // Open the FIFO for reading
-        if (fd == -1) {
-            perror("Failed to open FIFO for reading");
+        // Write data to the pipe
+        if (write(fds[1], data, LARGE_BUFFER_SIZE) < 0) {
+            perror("write failed");
             exit(EXIT_FAILURE);
         }
 
-        struct pollfd fd_set[1];
-        fd_set[0].fd = fd;
-        fd_set[0].events = POLLIN;
-
-        ssize_t bytes_read;
-        size_t total_bytes_read = 0;
-
-        while (1) {
-            int poll_result = poll(fd_set, 1, -1);
-            if (poll_result < 0) {
-                perror("Poll failed");
-                exit(EXIT_FAILURE);
-            }
-
-            if (fd_set[0].revents & POLLIN) {
-                bytes_read = read(fd, buffer, BUFFER_SIZE);
-                if (bytes_read > 0) {
-                    total_bytes_read += bytes_read;
-                } else if (bytes_read == 0) {
-                    // EOF, no more data to read
-                    break;
-                } else {
-                    perror("Read failed");
-                    exit(EXIT_FAILURE);
-                }
-            }
+        // Close the write end of the pipe
+        if (close(fds[1]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
         }
 
-        printf("Total bytes read: %ld\n", total_bytes_read);
-        close(fd);  // Close the FIFO
+        // Exit the child process
         exit(EXIT_SUCCESS);
+    } else { // Parent process waits for child to exit
+
+        // Close the write end of the pipe
+        if (close(fds[1]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Read data from the pipe
+        ssize_t bytes_read;
+        char buffer[BUFFER_SIZE];
+        int total_bytes_read = 0;
+        while ((bytes_read = read(fds[0], buffer, BUFFER_SIZE)) > 0) {
+            total_bytes_read += bytes_read;
+            printf("Bytes received: %d\n", total_bytes_read);
+        }
+        if (bytes_read < 0) {
+            perror("read failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Compare the amount of data received with the amount sent by the client
+        if (total_bytes_read == LARGE_BUFFER_SIZE) {
+            printf("\nReceived data matches!\n");
+        } else {
+            printf("\nReceived data does not match!\n");
+        }
+
+        // Close the read end of the pipe
+        if (close(fds[0]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Wait for the child process to exit
+        waitpid(pid, NULL, 0);
     }
 
-    char msg[BUFFER_SIZE];;
-    int  read_from_client = read(fd, msg, BUFFER_SIZE);
-    if (read_from_client= -1){
-        perror("Finsh read");
-        exit(EXIT_FAILURE);
-    }
-    printf("clinet  read  ALL\n");
-    close(fd);  // Close the FIFO
-    // Remove the named pipe (FIFO)
-    if (unlink(fifo_name) == -1) {
-        perror("Failed to remove FIFO");
-        exit(EXIT_FAILURE);
-    }
-
-
+    free(data);
+}
 
 int main(){
-//start_server_mmap();
-start_server_pipe();
+start_server_TCP_IPv4();
+
     return 0;
 }
