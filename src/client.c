@@ -1,5 +1,3 @@
-
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,9 +15,9 @@
 #include <sys/stat.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include <sys/wait.h>
 
-
-#define PORT 1345
+#define PORT 55500
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 104857600//100MB
 #define MAX_MESSAGE_LENGTH 1024
@@ -30,6 +28,9 @@
 #define FILESIZE 100*1024*1024
 #define SHARED_FILE "/my_shared_file"
 #define MESSAGE_SIZE 16
+#define MMBUFFERSIZE 100*1024*1024 // 100MB
+
+
 
 void chat_client_TCP_IPV4(char *ip_addr, int port) {
     int client_fd;
@@ -144,16 +145,16 @@ void client_TCP_IPv4() {
         }
         memcpy(large_buffer + total_bytes_read, buffer, valread);
         total_bytes_read += valread;
-        printf("Received %d\n",total_bytes_read);
 
     }
+    printf("Received %d\n",total_bytes_read);
+
     // Calculate checksum of received data
     unsigned int calculated_checksum = checksum(large_buffer, LARGE_BUFFER_SIZE);
 
     //send Ack
     char *ack ="Ack";
     send(sock, ack, strlen(ack), 0);
-    printf("Ack message sent\n");
 
     // Receive checksum from server
     if (recv(sock, &received_checksum, sizeof(unsigned int), 0) < 0) {
@@ -560,7 +561,6 @@ void client_UDS_stream() {
     close(sock);
 }
 
-#define MMBUFFERSIZE 100*1024*1024 // 100MB
 
 void client_mmap() {
     int fd;
@@ -605,72 +605,92 @@ void client_mmap() {
     }
 }
 
-void client_pipe() {
-    const char *fifo_name = "/tmp/my_fifo1";
-    int fd;
-    char buffer[BUFFER_SIZE];
+#define BUFFER_SIZE 1024
+#define LARGE_BUFFER_SIZE (1024 * 1024)
 
-    // Open the named pipe (FIFO) for reading
-    fd = open(fifo_name, O_RDONLY);
-    if (fd == -1) {
-        perror("Failed to open FIFO for reading");
+void client_pipe() {
+    int fds[2];
+    pid_t pid;
+    char buffer[LARGE_BUFFER_SIZE];
+    ssize_t bytes_read;
+    int bytes_total = 0;
+
+    // Create the pipe
+    if (pipe(fds) < 0) {
+        perror("pipe failed");
         exit(EXIT_FAILURE);
     }
 
-    ssize_t bytes_read;
-    size_t total_bytes_read = 0;
+    // Fork a child process to handle server connection
+    pid = fork();
+    if (pid < 0) {
+        perror("fork failed");
+        exit(EXIT_FAILURE);
+    } else if (pid == 0) { // Child process handles server connection
 
-    // Wait for the server to start writing to the FIFO
-    // This could be done using a semaphore or some other synchronization mechanism
-    sleep(1);
-
-    // Read all available data from the pipe
-    while (total_bytes_read<LARGE_BUFFER_SIZE) {
-        bytes_read = read(fd, buffer, BUFFER_SIZE);
-        //printf("%d\n",bytes_read);
-        if (bytes_read > 0) {
-            total_bytes_read += bytes_read;
-            // Process the data read from the pipe here
-            // In this example, we'll just print it to the console
-            // printf("Read %ld bytes from pipe: %.*s\n", bytes_read, (int)bytes_read, buffer);
-        } else if (bytes_read == 0) {
-            // EOF, no more data to read
-           // break;
-        } else {
-            perror("Read failed");
+        // Close the write end of the pipe
+        if (close(fds[1]) < 0) {
+            perror("close failed");
             exit(EXIT_FAILURE);
         }
+
+        // Read data from the pipe
+        while ((bytes_read = read(fds[0], buffer, BUFFER_SIZE)) > 0) {
+            bytes_total += bytes_read;
+        }
+        if (bytes_read < 0) {
+            perror("read failed");
+            exit(EXIT_FAILURE);
+        }
+
+        printf("Received %d bytes from server\n", bytes_total);
+
+        // Close the read end of the pipe
+        if (close(fds[0]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Exit the child process
+        exit(EXIT_SUCCESS);
+    } else { // Parent process handles sending data
+
+        // Close the read end of the pipe
+        if (close(fds[0]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Write data to the pipe
+        char * data = malloc(LARGE_BUFFER_SIZE);
+        memset(data, 'a', LARGE_BUFFER_SIZE);
+
+        int i;
+        for (i = 0; i < 100; i++) {
+            if (write(fds[1], data, LARGE_BUFFER_SIZE) < 0) {
+                perror("write failed");
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        free(data);
+
+        // Close the write end of the pipe
+        if (close(fds[1]) < 0) {
+            perror("close failed");
+            exit(EXIT_FAILURE);
+        }
+
+        // Wait for the child process to exit
+        waitpid(pid, NULL, 0);
     }
-
-    printf("Total bytes read: %ld\n", total_bytes_read);
-    close(fd);  // Close the FIFO
-
-    // Notify the server that all data has been read
-    fd = open(fifo_name, O_WRONLY);
-    if (fd == -1) {
-        perror("Failed to open FIFO for writing");
-        exit(EXIT_FAILURE);
-    }
-
-    const char *msg = "All data read";
-    ssize_t bytes_written = write(fd, msg, strlen(msg));
-    if (bytes_written == -1) {
-        perror("Write failed");
-        exit(EXIT_FAILURE);
-    }
-
-    close(fd);  // Close the FIFO
 }
-
-
-
 
 
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
-  //  client_mmap();
-  client_pipe();
+    client_TCP_IPv4();
 
 } 
 
