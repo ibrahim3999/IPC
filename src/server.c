@@ -611,7 +611,7 @@ void start_server_pipe() {
     int fd;
     pid_t pid;
     char buffer[BUFFER_SIZE];
-    const char *fifo_name = "/tmp/my_fifo";
+    const char *fifo_name = "/tmp/my_fifo1";
 
     // Create a named pipe (FIFO)
     if (mkfifo(fifo_name, 0666) == -1) {
@@ -639,12 +639,17 @@ void start_server_pipe() {
             size_t bytes_to_write = (LARGE_BUFFER_SIZE - bytes_written < BUFFER_SIZE) ?
                                     LARGE_BUFFER_SIZE - bytes_written : BUFFER_SIZE;
             memset(buffer, data+bytes_written, bytes_to_write);  // Fill buffer with 'A'
+
+            // Write to FIFO
             ssize_t result = write(fd, buffer, bytes_to_write);
             if (result < 0) {
                 perror("Write failed");
                 exit(EXIT_FAILURE);
             }
             bytes_written += result;
+
+            // Write to stdout
+            fwrite(buffer, 1, bytes_to_write, stdout);
         }
         printf("bytes written %ld\n",bytes_written);
         close(fd);  // Close the FIFO
@@ -694,6 +699,7 @@ void start_server_pipe() {
         exit(EXIT_FAILURE);
     }
 }
+
 
 int main(){
 //start_server_mmap();

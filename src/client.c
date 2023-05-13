@@ -605,37 +605,47 @@ void client_mmap() {
     }
 }
 
-
-
 void client_pipe() {
+    const char *fifo_name = "/tmp/my_fifo1";
     int fd;
     char buffer[BUFFER_SIZE];
+    
+    // Open the named pipe (FIFO) for reading
+    fd = open(fifo_name, O_RDONLY);
+    if (fd == -1) {
+        perror("Failed to open FIFO for reading");
+        exit(EXIT_FAILURE);
+    }
+
     ssize_t bytes_read;
+    size_t total_bytes_read = 0;
 
-    // Create named pipe
-    if (mkfifo("myfifo", 0666) < 0) {
-        perror("mkfifo failed");
-        exit(EXIT_FAILURE);
-    }
+    // Wait for the server to start writing to the FIFO
+    // This could be done using a semaphore or some other synchronization mechanism
+    sleep(1);
 
-    // Open named pipe for writing
-    if ((fd = open("myfifo", O_WRONLY)) < 0) {
-        perror("open failed");
-        exit(EXIT_FAILURE);
-    }
-
-    // Read from stdin and write to pipe
-    while ((bytes_read = read(STDIN_FILENO, buffer, BUFFER_SIZE)) > 0) {
-        ssize_t bytes_written = write(fd, buffer, bytes_read);
-        if (bytes_written < 0) {
-            perror("write failed");
+    while (1) {
+        bytes_read = read(fd, buffer, BUFFER_SIZE);
+        if (bytes_read > 0) {
+            total_bytes_read += bytes_read;
+            // Process the data read from the pipe here
+            // In this example, we'll just print it to the console
+           // printf("Read %ld bytes from pipe: %.*s\n", bytes_read, (int)bytes_read, buffer);
+        } else if (bytes_read == 0) {
+            // EOF, no more data to read
+            break;
+        } else {
+            perror("Read failed");
             exit(EXIT_FAILURE);
         }
     }
 
-    close(fd);
-    unlink("myfifo"); // Remove named pipe
+    printf("Total bytes read: %ld\n", total_bytes_read);
+    close(fd);  // Close the FIFO
 }
+
+
+
 
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
