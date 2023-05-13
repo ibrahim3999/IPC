@@ -609,7 +609,7 @@ void client_pipe() {
     const char *fifo_name = "/tmp/my_fifo1";
     int fd;
     char buffer[BUFFER_SIZE];
-    
+
     // Open the named pipe (FIFO) for reading
     fd = open(fifo_name, O_RDONLY);
     if (fd == -1) {
@@ -624,16 +624,18 @@ void client_pipe() {
     // This could be done using a semaphore or some other synchronization mechanism
     sleep(1);
 
-    while (1) {
+    // Read all available data from the pipe
+    while (total_bytes_read<LARGE_BUFFER_SIZE) {
         bytes_read = read(fd, buffer, BUFFER_SIZE);
+        //printf("%d\n",bytes_read);
         if (bytes_read > 0) {
             total_bytes_read += bytes_read;
             // Process the data read from the pipe here
             // In this example, we'll just print it to the console
-           // printf("Read %ld bytes from pipe: %.*s\n", bytes_read, (int)bytes_read, buffer);
+            // printf("Read %ld bytes from pipe: %.*s\n", bytes_read, (int)bytes_read, buffer);
         } else if (bytes_read == 0) {
             // EOF, no more data to read
-            break;
+           // break;
         } else {
             perror("Read failed");
             exit(EXIT_FAILURE);
@@ -642,7 +644,24 @@ void client_pipe() {
 
     printf("Total bytes read: %ld\n", total_bytes_read);
     close(fd);  // Close the FIFO
+
+    // Notify the server that all data has been read
+    fd = open(fifo_name, O_WRONLY);
+    if (fd == -1) {
+        perror("Failed to open FIFO for writing");
+        exit(EXIT_FAILURE);
+    }
+
+    const char *msg = "All data read";
+    ssize_t bytes_written = write(fd, msg, strlen(msg));
+    if (bytes_written == -1) {
+        perror("Write failed");
+        exit(EXIT_FAILURE);
+    }
+
+    close(fd);  // Close the FIFO
 }
+
 
 
 
