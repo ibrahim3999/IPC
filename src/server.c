@@ -611,11 +611,10 @@ void start_server_pipe() {
     int fd;
     pid_t pid;
     char buffer[BUFFER_SIZE];
-    const char *fifo_name = "/tmp/my_fifo1";
-
+    const char *fifo_name = "/tmp/my_fifo1";   
     // Create a named pipe (FIFO)
     if (mkfifo(fifo_name, 0666) == -1) {
-        perror("Failed to create FIFO");
+       perror("Failed to create FIFO");
         exit(EXIT_FAILURE);
     }
 
@@ -693,12 +692,20 @@ void start_server_pipe() {
         exit(EXIT_SUCCESS);
     }
 
+    char msg[BUFFER_SIZE];;
+    int  read_from_client = read(fd, msg, BUFFER_SIZE);
+    if (read_from_client= -1){
+        perror("Finsh read");
+        exit(EXIT_FAILURE);
+    }
+    printf("clinet  read  ALL\n");
+    close(fd);  // Close the FIFO
     // Remove the named pipe (FIFO)
     if (unlink(fifo_name) == -1) {
         perror("Failed to remove FIFO");
         exit(EXIT_FAILURE);
     }
-}
+
 
 
 int main(){
