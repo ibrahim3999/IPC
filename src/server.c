@@ -15,8 +15,10 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
+
+#include <netinet/tcp.h>
+
 #define SSA  (struct sockaddr *)
-#define PORT 55500
 #define BUFFER_SIZE 1024
 #define MMBUFFERSIZE 1024*100*16
 #define LARGE_BUFFER_SIZE  104857600
@@ -27,6 +29,8 @@
 #define FILESIZE 100*1024*1024
 #define SHARED_FILE "/my_shared_file"
 #define MESSAGE_SIZE 16
+
+
 
 void chat_server_TCP_IPV4(int port)
 {
@@ -126,7 +130,7 @@ char* generate_data(int size) {
 
     return data;
 }
-unsigned int checksum(const char *buf, size_t len) {
+unsigned int checksum_(const char *buf, size_t len) {
     unsigned int sum = 0;
     for (size_t i = 0; i < len; i++) {
         sum += buf[i];
@@ -134,7 +138,8 @@ unsigned int checksum(const char *buf, size_t len) {
     return sum;
 }
 //part B
-void start_server_TCP_IPv4() {
+void start_server_TCP_IPv4(int PORT) {
+    printf("start_server_TCP_IPv4\n");
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
@@ -159,7 +164,7 @@ void start_server_TCP_IPv4() {
     address.sin_port = htons(PORT);
 
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("bind failed");
+        perror("from tcp_ipv4 bind failed");
         exit(EXIT_FAILURE);
     }
 
@@ -176,7 +181,7 @@ void start_server_TCP_IPv4() {
     }
 
     // Send data to client with checksum
-    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int expected_checksum = checksum_(data, strlen(data));
     unsigned int received_checksum = 0;
     int total_sent = 0;
 
@@ -208,7 +213,7 @@ void start_server_TCP_IPv4() {
     close(server_fd);
 }
 
-void start_server_TCP_IPv6() {
+void start_server_TCP_IPv6(int PORT) {
     int server_fd, new_socket, valread;
     struct sockaddr_in6 address;
     int opt = 1;
@@ -250,7 +255,7 @@ void start_server_TCP_IPv6() {
     }
 
     // Send data to client with checksum
-    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int expected_checksum = checksum_(data, strlen(data));
     unsigned int received_checksum = 0;
     int total_sent = 0;
 
@@ -263,7 +268,6 @@ void start_server_TCP_IPv6() {
         }
 
         total_sent += bytes_sent;
-        printf("Sent %d\n" , total_sent);
     }
         //Receive Ack
         char ack[BUFFER_SIZE] = {0};
@@ -278,7 +282,8 @@ void start_server_TCP_IPv6() {
         exit(EXIT_FAILURE);
     }
     printf("Check sum sent : %u\n",expected_checksum);
-    
+    printf("Sent %d\n" , total_sent);
+
     close(new_socket);
     close(server_fd);
 }
@@ -288,12 +293,12 @@ void error(char *msg) {
     exit(EXIT_FAILURE);
 }
 
-void start_server_UDP_IPv4(int port) {
+void start_server_UDP_IPv4(int PORT) {
     struct sockaddr_in server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
     char* data = generate_data(LARGE_BUFFER_SIZE);
-    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int expected_checksum = checksum_(data, strlen(data));
     unsigned int received_checksum = 0;
 
     if ((sockfd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
@@ -304,7 +309,7 @@ void start_server_UDP_IPv4(int port) {
     memset((char *)&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(port);
+    server_addr.sin_port = htons(PORT);
 
     if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("Error binding socket");
@@ -332,12 +337,12 @@ void start_server_UDP_IPv4(int port) {
     close(sockfd);
 }
 
-void start_server_UDP_IPv6(char *ip, int port) {
+void start_server_UDP_IPv6(int PORT) {
     struct sockaddr_in6 server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
     char* data = generate_data(LARGE_BUFFER_SIZE);
-    unsigned int expected_checksum = checksum(data, strlen(data));
+    unsigned int expected_checksum = checksum_(data, strlen(data));
     unsigned int received_checksum = 0;
 
     if ((sockfd = socket(AF_INET6, SOCK_DGRAM, IPPROTO_UDP)) == -1) {
@@ -349,7 +354,7 @@ void start_server_UDP_IPv6(char *ip, int port) {
 
     server_addr.sin6_family = AF_INET6;
     server_addr.sin6_addr = in6addr_any;
-    server_addr.sin6_port = htons(port);
+    server_addr.sin6_port = htons(PORT);
 
     if (bind(sockfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("Error binding socket");
@@ -501,8 +506,6 @@ void start_server_UDS_stream() {
     unlink(UDS_PATH);
 }
 
-
-// Server function
 
 void start_server_mmap() {
     int fd;
@@ -691,8 +694,71 @@ void start_server_mmap() {
     free(data);
 }
 
+void host_server(int PORT ,int host_port) {
+    
+    int server_fd, new_socket, valread;
+    struct sockaddr_in address;
+    int opt = 1;
+    int addrlen = sizeof(address);
+    char buffer[1024] = {0};
+    char *hello = "Hello from server";
+
+    // Creating socket file descriptor
+    if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
+        perror("socket failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Forcefully attaching socket to the port 8888
+    if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR , &opt, sizeof(opt))) {
+        perror("setsockopt");
+        exit(EXIT_FAILURE);
+    }
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(host_port);
+
+    // Binding socket to the specified port
+    if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
+        perror("host server :bind failed");
+        exit(EXIT_FAILURE);
+    }
+
+    // Listening for incoming connections
+    if (listen(server_fd, 3) < 0) {
+        perror("listen");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Server started. Listening on port %d...\n", host_port);
+
+    // Accepting incoming connections
+    if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
+        perror("accept");
+        exit(EXIT_FAILURE);
+    }
+
+    // Sending message to client
+    send(new_socket, hello, strlen(hello), 0);
+    printf("Message sent to client: %s\n", hello);
+
+    // Reading data from client
+    valread = read(new_socket, buffer, 1024);
+    printf("Message received from client: %s\n", buffer);
+    close(new_socket);
+    close(server_fd);
+    if(!strcmp(buffer,"1")){
+        printf("start_server_TCP_IPv4 conn port :%d\n",PORT);
+        start_server_TCP_IPv4(PORT);
+    }
+}
+
+
+/*
 int main(){
-start_server_TCP_IPv4();
+start_server_TCP_IPv4(7894);
+//    host_server(12345,1);
 
     return 0;
 }
+*/
