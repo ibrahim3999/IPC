@@ -16,8 +16,8 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <sys/wait.h>
+#include <time.h>
 
-#define PORT 55500
 #define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE 104857600//100MB
 #define MAX_MESSAGE_LENGTH 1024
@@ -30,9 +30,7 @@
 #define MESSAGE_SIZE 16
 #define MMBUFFERSIZE 100*1024*1024 // 100MB
 
-
-
-void chat_client_TCP_IPV4(char *ip_addr, int port) {
+void chat_client_TCP_IPv4(char *ip_addr, int port) {
     int client_fd;
     struct sockaddr_in server_addr;
     char msg[MAX_MESSAGE_LENGTH];
@@ -102,7 +100,8 @@ unsigned int checksum(const char *buf, size_t len) {
     return sum;
 }
 //PARTB 
-void client_TCP_IPv4() {
+void client_TCP_IPv4(char *ip_addr, int PORT) {
+    printf("from client_TCP_IPv4 port :%d\n",PORT);
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char buffer[BUFFER_SIZE] = {0};
@@ -121,7 +120,7 @@ void client_TCP_IPv4() {
     serv_addr.sin_port = htons(PORT);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip_addr, &serv_addr.sin_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
         exit(EXIT_FAILURE);
     }
@@ -133,6 +132,7 @@ void client_TCP_IPv4() {
 
     // Receive data from server
     int total_bytes_read = 0;
+
     while (total_bytes_read < LARGE_BUFFER_SIZE) {
         valread = read(sock, buffer, BUFFER_SIZE);
         if (valread == 0) {
@@ -162,18 +162,11 @@ void client_TCP_IPv4() {
         exit(EXIT_FAILURE);
     }
 
-    // Compare checksums
-    if (calculated_checksum == received_checksum) {
-        printf("Received %d bytes from server with checksum %u, received matching checksum\n", total_bytes_read, received_checksum);
-    } else {
-        printf("Received %d bytes from server with checksum %u, received non-matching checksum %u\n", total_bytes_read, received_checksum, calculated_checksum);
-    }
-
 close(sock);
 
 }
 
-void client_TCP_IPv6() {
+void client_TCP_IPv6(char *ip_addr, int PORT) {
     int sock = 0, valread;
     struct sockaddr_in6 serv_addr;
     char *hello = "Hello from client";
@@ -193,7 +186,7 @@ void client_TCP_IPv6() {
     serv_addr.sin6_port = htons(PORT);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET6, "::1", &serv_addr.sin6_addr) <= 0) {
+    if (inet_pton(AF_INET6, ip_addr, &serv_addr.sin6_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
         exit(EXIT_FAILURE);
     }
@@ -217,7 +210,6 @@ void client_TCP_IPv6() {
         }
         memcpy(large_buffer + total_bytes_read, buffer, valread);
         total_bytes_read += valread;
-        printf("Receive %d\n", total_bytes_read);
     }
     printf("%d bytes received from server\n", total_bytes_read);
 
@@ -235,18 +227,11 @@ void client_TCP_IPv6() {
         exit(EXIT_FAILURE);
     }
 
-    // Compare checksums
-    if (calculated_checksum == received_checksum) {
-        printf("Received %d bytes from server with checksum %u, received matching checksum\n", total_bytes_read, received_checksum);
-    } else {
-        printf("Received %d bytes from server with checksum %u, received non-matching checksum %u\n", total_bytes_read, received_checksum, calculated_checksum);
-    }
-
     close(sock);
 
 }
 
-void client_UDP_IPv4(int port) {
+void client_UDP_IPv4(char *ip_addr, int PORT) {
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char buffer[LARGE_BUFFER_SIZE] = {0};
@@ -267,10 +252,10 @@ void client_UDP_IPv4(int port) {
     memset(&serv_addr, '0', sizeof(serv_addr));
 
     serv_addr.sin_family = AF_INET;
-    serv_addr.sin_port = htons(port);
+    serv_addr.sin_port = htons(PORT);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET, "127.0.0.1", &serv_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, ip_addr, &serv_addr.sin_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
         exit(EXIT_FAILURE);
     }
@@ -334,7 +319,7 @@ void client_UDP_IPv4(int port) {
     close(sock);
 }
 
-void client_UDP_IPv6(int port) {
+void client_UDP_IPv6(char *ip_addr, int PORT) {
     int sock = 0, valread;
     struct sockaddr_in6 serv_addr;
     char buffer[LARGE_BUFFER_SIZE] = {0};
@@ -355,10 +340,10 @@ void client_UDP_IPv6(int port) {
     memset(&serv_addr, '0', sizeof(serv_addr));
 
     serv_addr.sin6_family = AF_INET6;
-    serv_addr.sin6_port = htons(port);
+    serv_addr.sin6_port = htons(PORT);
 
     // Convert IPv4 and IPv6 addresses from text to binary form
-    if (inet_pton(AF_INET6, "::1", &serv_addr.sin6_addr) <= 0) {
+    if (inet_pton(AF_INET6, ip_addr, &serv_addr.sin6_addr) <= 0) {
         printf("\nInvalid address/ Address not supported \n");
         exit(EXIT_FAILURE);
     }
@@ -605,7 +590,6 @@ void client_mmap() {
     }
 }
 
-#define BUFFER_SIZE 1024
 #define LARGE_BUFFER_SIZE (1024 * 1024)
 
 void client_pipe() {
@@ -687,12 +671,14 @@ void client_pipe() {
 }
 
 
+/*
 void main() {
     struct rlimit limit = { .rlim_cur = 1024 * 1024 * 1024, .rlim_max = 1024 * 1024 * 1024 };
     setrlimit(RLIMIT_STACK, &limit);
-    client_TCP_IPv4();
+    client_TCP_IPv4("127.0.0.1",7894);
+   
 
 } 
-
+*/
 
 
