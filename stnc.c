@@ -22,11 +22,13 @@
 //void host_client(char *param ,char *type, int port) {  
 
 void host_client(int HPORT,  char* type,  char* param) {
+    printf("welcome from host clinet\n");
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
     char protype[2] = {0};  // Increase array size to 2 to accommodate null terminator
     // Convert protocol and type to single char
     if (strcmp(param, "tcp") == 0 && strcmp(type, "ipv4") == 0) {
+        printf("welcome from host clinet --> tcp_ipv4 ...\n");
         protype[0] = '1';
     } else if (strcmp(param, "tcp") == 0 && strcmp(type, "ipv6") == 0) {
         protype[0] = '2';
@@ -86,52 +88,64 @@ void host_client(int HPORT,  char* type,  char* param) {
 
 int main(int argc, char *argv[]) {
     int port;
-    char *IP;
-    char *type;
-    char *param;
+   
+    if (argc >= 2 && !strcmp("stnc", argv[1])) {
+        if (argc == 4 && !strcmp("-s", argv[2])) {
 
-if (argc >= 2 && !strcmp("stnc", argv[1])) {
-    if (argc == 4 && !strcmp("-s", argv[2])) {
-        port = atoi(argv[3]);
-        chat_server_TCP_IPV4(port);
-        printf("1\n");
-    } else if (argc == 5 && !strcmp("-c", argv[2])) {
-        IP = argv[3];
-        port = atoi(argv[4]);
-        chat_client_TCP_IPv4(IP, port);
+            port = atoi(argv[3]);
+            chat_server_TCP_IPV4(port);
 
-    } else if (argc == 5 && !strcmp("-s", argv[2]) && !strcmp("-p", argv[4])) {
-        port = atoi(argv[3]);
-        host_server(port, HOST_CONN_PORT);
+        } else if (argc == 5 && !strcmp("-c", argv[2])) {
 
-    } else if (argc == 8 && !strcmp("-c", argv[2]) && !strcmp("-p", argv[5]) &&
-               !strcmp("ipv4", argv[6]) && !strcmp("tcp", argv[7])) {
+            port = atoi(argv[4]);
+            chat_client_TCP_IPv4( argv[3], port);
+            
+        } else if (argc == 5 && !strcmp("-s", argv[2]) && !strcmp("-p", argv[4])) {
 
-        printf("%ld\n",strlen(argv[3]));//127.0.0.1
-        IP = (char*) malloc(strlen(argv[3]+1));
-        type =(char*) malloc(strlen(argv[6]+1));
-        param=(char*) malloc(strlen(argv[7])+1);
-       
-        strcpy(IP, argv[3]);
-        printf("%ld\n",strlen(IP));//127.0.0.1
-        port = atoi(argv[4]);
-        strcpy(type, argv[6]);
-        strcpy(param, argv[7]);
-        printf("type : %s\n param : %s \n ",type ,param );
-        if(IP==NULL || type==NULL || param==NULL){
-            perror("NULL IP,.. ");
-            exit(EXIT_FAILURE);
+            port = atoi(argv[3]);
+            host_server(port, HOST_CONN_PORT);
+
+        } else if (argc == 8 && !strcmp("-c", argv[2]) && !strcmp("-p", argv[5]) &&
+            !strcmp("ipv4", argv[6]) && !strcmp("tcp", argv[7])) {
+        
+            port = atoi(argv[4]);
+
+            host_client(HOST_CONN_PORT, argv[6],argv[7]);
+
+            client_TCP_IPv4(argv[3], port);// segmantion fault 
+          
+        }  else if (argc == 8 && !strcmp("-c", argv[2]) && !strcmp("-p", argv[5]) &&
+            !strcmp("ipv6", argv[6]) && !strcmp("tcp", argv[7])) { 
+            
+            host_client(HOST_CONN_PORT, argv[6],argv[7]); 
+            port = atoi(argv[4]);
+            client_TCP_IPv6(argv[3],port);
+
+        }else if (argc == 8 && !strcmp("-c", argv[2]) && !strcmp("-p", argv[5]) &&
+            !strcmp("ipv4", argv[6]) && !strcmp("udp", argv[7])) { 
+            
+            host_client(HOST_CONN_PORT, argv[6],argv[7]); 
+            port = atoi(argv[4]);
+            client_UDP_IPv4(argv[3],port);
+
+        }else if (argc == 8 && !strcmp("-c", argv[2]) && !strcmp("-p", argv[5]) &&
+            !strcmp("ipv6", argv[6]) && !strcmp("udp", argv[7])) { 
+            
+            host_client(HOST_CONN_PORT, argv[6],argv[7]); 
+            port = atoi(argv[4]);
+            client_UDP_IPv6(argv[3],port);
+
         }
-        host_client(HOST_CONN_PORT, type, param);
-        printf("stnc.c addr : %s\n port: %d \n",IP,port);
-        client_TCP_IPv4(IP,port); //segmnation fualt
-        free(IP);
-        free(type);
-        free(param);
+        
+        else {
+            printf("Invalid command line arguments\n");
+            return 1;
+        }
+        
     } else {
-        printf("Invalid command line arguments %d\n",argc);
-
+        printf("Invalid command line arguments\n");
+        return 1;
     }
-}
-return 0;
+
+    return 0;
 }
