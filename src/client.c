@@ -101,6 +101,17 @@ unsigned int checksum(const char *buf, size_t len) {
 }
 //PARTB 
 void client_TCP_IPv4(char *ip_addr, int PORT) {
+
+    if (ip_addr == NULL) {
+        printf("Error: ip_addr is null\n");
+        return;
+    }
+    
+    if (PORT < 0 || PORT > 65535) {
+        printf("Error: invalid PORT number\n");
+        return;
+    }
+    
     printf("from client_TCP_IPv4 port :%d\n",PORT);
     int sock = 0, valread;
     struct sockaddr_in serv_addr;
@@ -113,7 +124,7 @@ void client_TCP_IPv4(char *ip_addr, int PORT) {
         printf("\n Socket creation error \n");
         exit(EXIT_FAILURE);
     }
-
+ 
     memset(&serv_addr, '0', sizeof(serv_addr));
 
     serv_addr.sin_family = AF_INET;
@@ -161,7 +172,6 @@ void client_TCP_IPv4(char *ip_addr, int PORT) {
         perror("receive failed");
         exit(EXIT_FAILURE);
     }
-
 close(sock);
 
 }
@@ -680,5 +690,4 @@ void main() {
 
 } 
 */
-
 
