@@ -162,24 +162,22 @@ void start_server_TCP_IPv4(int PORT) {
     address.sin_family = AF_INET;
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
-
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
         perror("from tcp_ipv4 bind failed");
         exit(EXIT_FAILURE);
     }
-
-    // Listen for connections
+    printf("Listen for connections_TCP_IPv4\n");
     if (listen(server_fd, 3) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
     }
-
+     printf("Accept incoming connection_TCP_IPv4\n");
     // Accept incoming connection
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen)) < 0) {
         perror("accept failed");
         exit(EXIT_FAILURE);
     }
-
+     printf("After incoming connection_TCP_IPv4\n");
     // Send data to client with checksum
     unsigned int expected_checksum = checksum_(data, strlen(data));
     unsigned int received_checksum = 0;
@@ -214,6 +212,7 @@ void start_server_TCP_IPv4(int PORT) {
 }
 
 void start_server_TCP_IPv6(int PORT) {
+    printf("start_server_TCP_IPv6\n");
     int server_fd, new_socket, valread;
     struct sockaddr_in6 address;
     int opt = 1;
@@ -294,6 +293,7 @@ void error(char *msg) {
 }
 
 void start_server_UDP_IPv4(int PORT) {
+    printf("start_server_UDP_IPv4\n");
     struct sockaddr_in server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
@@ -338,6 +338,7 @@ void start_server_UDP_IPv4(int PORT) {
 }
 
 void start_server_UDP_IPv6(int PORT) {
+    printf("start_server_UDP_IPv6\n");
     struct sockaddr_in6 server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
@@ -614,7 +615,7 @@ void start_server_mmap() {
 }
 
 
- void start_server_pipe() {
+void start_server_pipe() {
     int fds[2];
     pid_t pid;
     char * data = malloc(LARGE_BUFFER_SIZE);
@@ -745,19 +746,30 @@ void host_server(int PORT ,int host_port) {
     // Reading data from client
     valread = read(new_socket, buffer, 1024);
     printf("Message received from client: %s\n", buffer);
+
+    if (strcmp(buffer, "1") == 0) {
+        printf("Starting TCP IPv4 server on port %d...\n", PORT);
+        start_server_TCP_IPv4(PORT);
+    }else if(strcmp(buffer, "2") == 0){
+        printf("Starting TCP IPv6 server on port %d...\n", PORT);
+        start_server_TCP_IPv6(PORT);
+    } 
+    else if(strcmp(buffer, "3") == 0){
+        printf("Starting UDP IPv4 server on port %d...\n", PORT);
+        start_server_UDP_IPv4(PORT);
+    } 
+    else {
+        printf("Invalid input received from client. Closing connection.\n");
+    }
     close(new_socket);
     close(server_fd);
-    if(!strcmp(buffer,"1")){
-        printf("start_server_TCP_IPv4 conn port :%d\n",PORT);
-        start_server_TCP_IPv4(PORT);
-    }
 }
 
 
 /*
 int main(){
 start_server_TCP_IPv4(7894);
-//    host_server(12345,1);
+//   host_server(12345,1);
 
     return 0;
 }
