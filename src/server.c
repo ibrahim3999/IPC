@@ -14,9 +14,9 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <sys/wait.h>
-
-
 #include <netinet/tcp.h>
+#include <time.h>
+
 
 #define SSA  (struct sockaddr *)
 #define BUFFER_SIZE 1024
@@ -24,7 +24,7 @@
 #define LARGE_BUFFER_SIZE  104857600
 #define MAX_MESSAGE_LENGTH 1024
 #define REQUEST "hello world"
-#define UDS_PATH "/tmp/my_unix_socket5552"
+#define UDS_PATH "/tmp/my_unix_socket38"
 #define FILENAME "b.txt"
 #define FILESIZE 100*1024*1024
 #define SHARED_FILE "/my_shared_file"
@@ -96,7 +96,7 @@ void chat_server_TCP_IPV4(int port)
                 perror("Server ->  recv Falied ");
                 exit(EXIT_FAILURE);
             }
-            printf("Client: %s",msg);
+//            printf("Client: %s",msg);
             strncpy(msg,"",1);
         }
 
@@ -139,7 +139,6 @@ unsigned int checksum_(const char *buf, size_t len) {
 }
 //part B
 void start_server_TCP_IPv4(int PORT) {
-    printf("start_server_TCP_IPv4\n");
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
@@ -163,56 +162,57 @@ void start_server_TCP_IPv4(int PORT) {
     address.sin_addr.s_addr = INADDR_ANY;
     address.sin_port = htons(PORT);
     if (bind(server_fd, (struct sockaddr *)&address, sizeof(address)) < 0) {
-        perror("from tcp_ipv4 bind failed");
+        perror("from server tcp_ipv4 bind failed");
         exit(EXIT_FAILURE);
     }
-    printf("Listen for connections_TCP_IPv4\n");
     if (listen(server_fd, 3) < 0) {
         perror("listen failed");
         exit(EXIT_FAILURE);
     }
-     printf("Accept incoming connection_TCP_IPv4\n");
     // Accept incoming connection
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address, &addrlen)) < 0) {
         perror("accept failed");
         exit(EXIT_FAILURE);
     }
-     printf("After incoming connection_TCP_IPv4\n");
-    // Send data to client with checksum
-    unsigned int expected_checksum = checksum_(data, strlen(data));
-    unsigned int received_checksum = 0;
-    int total_sent = 0;
 
+    // Send data to client with checksum
+    unsigned int data_checksum = checksum_(data, LARGE_BUFFER_SIZE);
+
+    // Send data to client
+    int total_sent = 0;
     while (total_sent < LARGE_BUFFER_SIZE) {
-        int bytes_sent = send(new_socket, data, sizeof(data), 0);
-        
+        int bytes_sent = send(new_socket, data + total_sent, LARGE_BUFFER_SIZE - total_sent, 0);
         if (bytes_sent < 0) {
             perror("send failed");
             exit(EXIT_FAILURE);
         }
-
         total_sent += bytes_sent;
     }
-        //Receive Ack
-        char ack[BUFFER_SIZE] = {0};
-        int secceess=0;
-        secceess = read(new_socket, ack, BUFFER_SIZE);
+//    printf("Sent %d bytes to client\n", total_sent);
 
+    // Receive Ack
+    char ack[BUFFER_SIZE] = {0};
+    int ack_bytes = read(new_socket, ack, BUFFER_SIZE);
+    if (ack_bytes < 0) {
+        perror("receive failed");
+        exit(EXIT_FAILURE);
+    }
+//    printf("Received Ack: %s\n", ack);
 
-    // Send checksum to client
-    if (send(new_socket, &expected_checksum, sizeof(unsigned int), 0) < 0) {
+    // Send data checksum to client
+    if (send(new_socket, &data_checksum, sizeof(data_checksum), 0) < 0) {
         perror("send failed");
         exit(EXIT_FAILURE);
     }
-    printf("Check sum sent : %u\n",expected_checksum);
-    printf("Sent %d\n" , total_sent);
-    
+//    printf("Sent data checksum to client: %u\n", data_checksum);
+
     close(new_socket);
     close(server_fd);
 }
 
+
 void start_server_TCP_IPv6(int PORT) {
-    printf("start_server_TCP_IPv6\n");
+//    printf("start_server_TCP_IPv6\n");
     int server_fd, new_socket, valread;
     struct sockaddr_in6 address;
     int opt = 1;
@@ -272,7 +272,7 @@ void start_server_TCP_IPv6(int PORT) {
         char ack[BUFFER_SIZE] = {0};
         int secceess=0;
         secceess = read(new_socket, ack, BUFFER_SIZE);
-        printf("%s Received\n",ack);
+//        printf("%s Received\n",ack);
 
 
     // Send checksum to client
@@ -280,20 +280,15 @@ void start_server_TCP_IPv6(int PORT) {
         perror("send failed");
         exit(EXIT_FAILURE);
     }
-    printf("Check sum sent : %u\n",expected_checksum);
-    printf("Sent %d\n" , total_sent);
+//    printf("Check sum sent : %u\n",expected_checksum);
+//    printf("Sent %d\n" , total_sent);
 
     close(new_socket);
     close(server_fd);
 }
 
-void error(char *msg) {
-    perror(msg);
-    exit(EXIT_FAILURE);
-}
-
 void start_server_UDP_IPv4(int PORT) {
-    printf("start_server_UDP_IPv4\n");
+//    printf("start_server_UDP_IPv4\n");
     struct sockaddr_in server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
@@ -333,12 +328,12 @@ void start_server_UDP_IPv4(int PORT) {
         total_sent += send_len;
        
     }
-    printf("Sent %d bytes of data\n", total_sent);
+//    printf("Sent %d bytes of data\n", total_sent);
     close(sockfd);
 }
 
 void start_server_UDP_IPv6(int PORT) {
-    printf("start_server_UDP_IPv6\n");
+//    printf("start_server_UDP_IPv6\n");
     struct sockaddr_in6 server_addr, client_addr;
     int sockfd, total_sent = 0;
     socklen_t client_len = sizeof(client_addr);
@@ -379,7 +374,7 @@ void start_server_UDP_IPv6(int PORT) {
         total_sent += send_len;
        
     }
-    printf("Sent %d bytes of data\n", total_sent);
+//    printf("Sent %d bytes of data\n", total_sent);
     close(sockfd);
 }
 
@@ -414,7 +409,6 @@ void start_server_UDS_dgram() {
         exit(EXIT_FAILURE);
     }
     buffer[n] = '\0';
-    printf("Received request: %s\n", buffer);
 
     // Send 100MB of data to client
     int total_sent = 0;
@@ -428,8 +422,8 @@ void start_server_UDS_dgram() {
             exit(EXIT_FAILURE);
         }
         total_sent += send_len;
-        printf("Sent: %d\n", total_sent);
     }
+//        printf("Sent: %d\n", total_sent);
 
     close(sockfd);
 }
@@ -484,7 +478,7 @@ void start_server_UDS_stream() {
         exit(EXIT_FAILURE);
     }
 
-    printf("Received request: %s\n", buffer);
+//    printf("Received request: %s\n", buffer);
 
     // Send 100MB of data to client
     int total_sent = 0;
@@ -499,8 +493,8 @@ void start_server_UDS_stream() {
             exit(EXIT_FAILURE);
         }
         total_sent += bytes_sent;
-        printf("Sent: %d\n", total_sent);
     }
+//        printf("Sent: %d\n", total_sent);
 
     close(new_socket);
     close(server_fd);
@@ -596,13 +590,13 @@ void start_server_mmap() {
             perror("read failed");
             exit(EXIT_FAILURE);
         }
-        // Compare the data read with the data written by the server
+/*        // Compare the data read with the data written by the server
         if (strncmp(buffer, mapped, BUFFER_SIZE) == 0) {
             printf("\nReceived data matches!\n");
         } else {
             printf("\nReceived data does not match!\n");
         }
-
+*/
         // Unmap the shared memory
         if (munmap(mapped, BUFFER_SIZE) < 0) {
             perror("munmap failed");
@@ -668,20 +662,21 @@ void start_server_pipe() {
         int total_bytes_read = 0;
         while ((bytes_read = read(fds[0], buffer, BUFFER_SIZE)) > 0) {
             total_bytes_read += bytes_read;
-            printf("Bytes received: %d\n", total_bytes_read);
         }
         if (bytes_read < 0) {
             perror("read failed");
             exit(EXIT_FAILURE);
         }
+//        printf("Bytes received: %d\n", total_bytes_read);
 
+/*
         // Compare the amount of data received with the amount sent by the client
         if (total_bytes_read == LARGE_BUFFER_SIZE) {
             printf("\nReceived data matches!\n");
         } else {
             printf("\nReceived data does not match!\n");
         }
-
+*/
         // Close the read end of the pipe
         if (close(fds[0]) < 0) {
             perror("close failed");
@@ -695,7 +690,7 @@ void start_server_pipe() {
     free(data);
 }
 
-void host_server(int PORT ,int host_port) {
+int host_server(int PORT ,int host_port) {
     
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
@@ -731,7 +726,7 @@ void host_server(int PORT ,int host_port) {
         exit(EXIT_FAILURE);
     }
 
-    printf("Server started. Listening on port %d...\n", host_port);
+//    printf("Server started. Listening on port %d...\n", host_port);
 
     // Accepting incoming connections
     if ((new_socket = accept(server_fd, (struct sockaddr *)&address, (socklen_t*)&addrlen)) < 0) {
@@ -741,28 +736,49 @@ void host_server(int PORT ,int host_port) {
 
     // Sending message to client
     send(new_socket, hello, strlen(hello), 0);
-    printf("Message sent to client: %s\n", hello);
+//    printf("Message sent to client: %s\n", hello);
 
     // Reading data from client
     valread = read(new_socket, buffer, 1024);
-    printf("Message received from client: %s\n", buffer);
-
-    if (strcmp(buffer, "1") == 0) {
-        printf("Starting TCP IPv4 server on port %d...\n", PORT);
+//    printf("Message received from client: %s\n", buffer);
+//    printf("THe buffer is :%s\n",buffer);
+        if (strcmp(buffer, "1") == 0) {
         start_server_TCP_IPv4(PORT);
+//      printf("Starting TCP IPv4 server on port %d...\n", PORT);
     }else if(strcmp(buffer, "2") == 0){
-        printf("Starting TCP IPv6 server on port %d...\n", PORT);
-        start_server_TCP_IPv6(PORT);
+//          printf("Starting TCP IPv6 server on port %d...\n", PORT);
+            start_server_TCP_IPv6(PORT);
     } 
     else if(strcmp(buffer, "3") == 0){
-        printf("Starting UDP IPv4 server on port %d...\n", PORT);
         start_server_UDP_IPv4(PORT);
+    } 
+        else if(strcmp(buffer, "4") == 0){
+//        printf("Starting UDP IPv6 server on port %d...\n", PORT);
+        start_server_UDP_IPv6(PORT);
+    } 
+        else if(strcmp(buffer, "5") == 0){
+//        printf("Starting UDS Dgram server...\n");
+        start_server_UDS_dgram(PORT);
+    } 
+        else if(strcmp(buffer, "6") == 0){
+//        printf("Starting UDS Stream server...\n");
+        start_server_UDS_stream(PORT);
+    } 
+        else if(strcmp(buffer, "7") == 0){
+//        printf("Starting Mmap server...\n");
+        start_server_mmap();
+    } 
+        else if(strcmp(buffer, "8") == 0){
+//        printf("Starting Pipe server...\n");
+        start_server_pipe();
     } 
     else {
         printf("Invalid input received from client. Closing connection.\n");
     }
     close(new_socket);
     close(server_fd);
+    int num = atoi(buffer);
+    return num;
 }
 
 
