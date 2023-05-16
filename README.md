@@ -3,7 +3,7 @@
 This project is a network communication application that enables communication between a client and a server using different protocols and transport mechanisms.
 
 ## Features
-
+- chat between server and client use poll  file descriptor(IPC)
 - TCP/IP communication using both IPv4 and IPv6
 - UDP/IP communication using both IPv4 and IPv6
 - Unix Domain Socket (UDS) communication using datagram and stream sockets
