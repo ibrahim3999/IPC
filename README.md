@@ -18,18 +18,16 @@ This project is a network communication application that enables communication b
 
 ## Getting Started
 
-   ```bash
-   git clone https://github.com/ibrahim3999/IPC.git
+  1) ` git clone https://github.com/ibrahim3999/IPC.git `
    
-   ```bash
-   make
+   2) ` make ` 
    
-   ```bash
-   ./stnc -s PORT -p(for performance test)-q (for quiet)
+  3) ` ./stnc -s PORT -p(for performance test)-q (for quiet) `
   
-   ```bash
-   ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name)
+  4) `  ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name) `
    
-   
+ ## Example
+ * start server onport 1234 ` ./stnc -s 1234 -p -q `
+ * Connect to the TCP server(IPv4 at 127.0.0.1) ` ./stnc -c 127.0.0.1 1234 -p ipv4 tcp `
    
    
