@@ -21,4 +21,4 @@ This project is a network communication application that enables communication b
 1. Clone the repository:
 
    ```bash
-   git clone https://github.com/your-username/network-communication-project.git
+   git clone https://github.com/ibrahim3999/IPC.git
