@@ -18,7 +18,18 @@ This project is a network communication application that enables communication b
 
 ## Getting Started
 
-1. Clone the repository:
-
    ```bash
    git clone https://github.com/ibrahim3999/IPC.git
+   
+   ```bash
+   make
+   
+   ```bash
+   ./stnc -s PORT -p(for performance test)-q (for quiet)
+   
+   ```bash
+   ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name)
+   
+   
+   
+   
