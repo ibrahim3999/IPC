@@ -1,4 +1,4 @@
-# Network Communication Project
+# Inter-process communication Project
 
 This project is a network communication application that enables communication between a client and a server using different protocols and transport mechanisms.
 
