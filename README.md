@@ -26,7 +26,7 @@ This project is a network communication application that enables communication b
    
    ```bash
    ./stnc -s PORT -p(for performance test)-q (for quiet)
-   
+  
    ```bash
    ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name)
    
