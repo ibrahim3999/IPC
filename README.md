@@ -32,7 +32,7 @@ This project is a network communication application that enables communication b
    
    
 ## Research:
-   ```` The examination focused on transferring a 100MB file and comparing the transfer times using different protocols and mechanisms. The software under examination included TCP (IPv4 and IPv6), Unix Domain Sockets (UDS) with datagram and stream sockets, pipe, and Memory-Mapped Files (MMAP).
+   ``` The examination focused on transferring a 100MB file and comparing the transfer      times using different protocols and mechanisms. The software under examination included TCP (IPv4 and IPv6), Unix Domain Sockets (UDS) with datagram and stream sockets, pipe, and Memory-Mapped Files (MMAP).
 
     TCP IPv4: When transferring the 100MB file using TCP over IPv4, the observed transfer time was approximately 663.01 ms. TCP (Transmission Control Protocol) is a reliable, connection-oriented protocol widely used for data transfer over IP networks.
 
