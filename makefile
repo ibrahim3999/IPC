@@ -1,22 +1,32 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -pedantic
+CFLAGS = -std=c99 -Wall
+LDFLAGS =
 
-all: stnc 
+SERVER_SRCS = src/server.c
+CLIENT_SRCS = src/client.c
+STNC_SRCS = stnc.c
 
-stnc: object/stnc.o object/server.o object/client.o 
-	$(CC) -o bin/stnc object/stnc.o object/server.o object/client.o
-	./bin/stnc   # execute the stnc command here
+SERVER_OBJS = $(SERVER_SRCS:.c=.o)
+CLIENT_OBJS = $(CLIENT_SRCS:.c=.o)
+STNC_OBJ = $(STNC_SRCS:.c=.o)
 
+STNC_EXEC = stnc
 
-object/stnc.o: stnc.c 
-	$(CC) $(CFLAGS) -c stnc.c -o object/stnc.o
+.PHONY: all clean
 
-object/server.o: src/server.c src/server.h
-	$(CC) $(CFLAGS) -c src/server.c -o object/server.o
+all: $(STNC_EXEC)
 
-object/client.o: src/client.c src/client.h
-	$(CC) $(CFLAGS) -c src/client.c -o object/client.o
+$(STNC_EXEC): $(SERVER_OBJS) $(CLIENT_OBJS) $(STNC_OBJ)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $^
 
+$(SERVER_OBJS): $(SERVER_SRCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(CLIENT_OBJS): $(CLIENT_SRCS)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+$(STNC_OBJ): $(STNC_SRCS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
-	rm -f bin/stnc bin/server bin/client  object/*.o
+	rm -f $(SERVER_OBJS) $(CLIENT_OBJS) $(STNC_OBJ) $(STNC_EXEC)
