@@ -17,19 +17,22 @@ This project is a network communication application that enables communication b
 - Socket programming knowledge
 
 ## Getting Started
+- ` git clone https://github.com/ibrahim3999/IPC.git `
+   
+- ` make `
+# PARTA (chat(poll) server <->client ):
+1) ` ./stnc -s PORT `
+2) `./stnc -c ` IP PORT `
 
-1) ` git clone https://github.com/ibrahim3999/IPC.git `
-   
-2) ` make ` 
-   
-3) ` ./stnc -s PORT -p(for performance test)-q (for quiet) `
+# PARTB:
+1) ` ./stnc -s PORT -p(for performance test)-q (for quiet) `
   
-4) `  ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name) `
+2) `  ./stnc -c IP PORT -p <type> <param> (type-> ipv4,ipv6,mmap,... param-> udp,tcpor dgram/stream or file name) `
    
  ## Example
  * start server onport 1234 ` ./stnc -s 1234 -p -q `
  * Connect to the TCP server(IPv4 at 127.0.0.1) ` ./stnc -c 127.0.0.1 1234 -p ipv4 tcp `
-   
+ 
    
 ## Research:
 ` The examination focused on transferring a 100MB file and comparing the transfer times using different protocols and       mechanisms. The software under examination included TCP (IPv4 and IPv6),
